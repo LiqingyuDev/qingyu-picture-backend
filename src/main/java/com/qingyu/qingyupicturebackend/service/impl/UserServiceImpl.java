@@ -1,37 +1,43 @@
 package com.qingyu.qingyupicturebackend.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.ObjUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.qingyu.qingyupicturebackend.common.ResultUtils;
 import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
-import com.qingyu.qingyupicturebackend.model.dto.UserLoginRequest;
-import com.qingyu.qingyupicturebackend.model.dto.UserRegisterRequest;
+import com.qingyu.qingyupicturebackend.model.dto.user.UserQueryRequest;
 import com.qingyu.qingyupicturebackend.model.entity.User;
 import com.qingyu.qingyupicturebackend.model.enums.UserRoleEnum;
 import com.qingyu.qingyupicturebackend.model.vo.LoginUserVO;
+import com.qingyu.qingyupicturebackend.model.vo.UserVO;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import com.qingyu.qingyupicturebackend.mapper.UserMapper;
 import cn.hutool.core.util.StrUtil;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 用户服务实现类
+ *
  * @author qingyu
  * @description 针对表【user(用户表)】的数据库操作Service实现
  * @createDate 2024-12-09 20:02:37
  */
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+    //region用户基础功能
+
 
     @Override
     public Long userRegister(String userAccount, String userPassword, String checkPassword) {
@@ -138,14 +144,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      * @param userPassword 用户密码
      * @return 加密后的密码
      */
-    private String getEncryptPassword(String userPassword) {
+    @Override
+    public String getEncryptPassword(String userPassword) {
         // 加盐，混淆密码
         final String SALT = "qingyu";
         return DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes()); // 使用 DigestUtils.md5Hex
     }
 
     /**
-     * 获得脱敏后的用户信息
+     * 获得脱敏后的登录用户信息
      *
      * @param user 包含用户详细信息的 User 对象
      * @return 包含脱敏后用户信息的 LoginUserVO 对象
@@ -159,4 +166,87 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         BeanUtil.copyProperties(user, loginUserVO);
         return loginUserVO;
     }
+    //endregion
+
+
+//region 用户管理:增删查改
+
+/**
+ * 将 User 实体对象转换为 UserVO 对象。
+ *
+ * @param user 需要转换的 User 实体对象
+ * @return 转换后的 UserVO 对象，如果传入的 User 对象为 null，则返回 null
+ */
+@Override
+public UserVO getUserVO(User user) {
+    if (user == null) {
+        return null;
+    }
+    UserVO userVO = new UserVO();
+    BeanUtils.copyProperties(user, userVO);
+    return userVO;
+}
+
+/**
+ * 将 User 实体对象列表转换为 UserVO 对象列表。
+ *
+ * @param userList 需要转换的 User 实体对象列表
+ * @return 转换后的 UserVO 对象列表，如果传入的列表为空，则返回空列表
+ */
+@Override
+public List<UserVO> getUserVOList(List<User> userList) {
+    if (CollUtil.isEmpty(userList)) {
+        return new ArrayList<>();
+    }
+    return userList.stream().map(this::getUserVO).collect(Collectors.toList());
+}
+
+/**
+ * 根据实体类获取查询条件。
+ *
+ * @param userQueryRequest 包含查询条件的请求对象
+ * @return 构建好的 QueryWrapper 对象，用于后续的数据库查询
+ * @throws BusinessException 如果请求参数为空，则抛出业务异常
+ */
+@Override
+public QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest) {
+    if (userQueryRequest == null) {
+        throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
+    }
+    Long id = userQueryRequest.getId();
+    String userAccount = userQueryRequest.getUserAccount();
+    String userName = userQueryRequest.getUserName();
+    String userProfile = userQueryRequest.getUserProfile();
+    String userRole = userQueryRequest.getUserRole();
+    String sortField = userQueryRequest.getSortField();
+    String sortOrder = userQueryRequest.getSortOrder();
+
+    // 创建一个 QueryWrapper 对象，用于构建查询条件
+    QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+
+    // 如果 id 不为空，则添加等于条件
+    queryWrapper.eq(ObjUtil.isNotNull(id), "id", id);
+
+    // 如果 userRole 不为空且不为单个空白字符，则添加等于条件
+    queryWrapper.eq(StrUtil.isNotBlank(userRole), "userRole", userRole);
+
+    // 如果 userAccount 不为空且不为单个空白字符，则添加模糊匹配条件
+    queryWrapper.like(StrUtil.isNotBlank(userAccount), "userAccount", userAccount);
+
+    // 如果 userName 不为空且不为单个空白字符，则添加模糊匹配条件
+    queryWrapper.like(StrUtil.isNotBlank(userName), "userName", userName);
+
+    // 如果 userProfile 不为空且不为单个空白字符，则添加模糊匹配条件
+    queryWrapper.like(StrUtil.isNotBlank(userProfile), "userProfile", userProfile);
+
+    // 如果 sortOrder 为 "ascend"，则执行升序排序；否则执行降序排序
+    queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals("ascend"), sortField);
+
+    return queryWrapper;
+}
+
+//endregion
+
+
+
 }

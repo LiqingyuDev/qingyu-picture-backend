@@ -18,10 +18,10 @@ public interface UserConstant {
     /**
      * 管理员角色标识
      */
-    String USER_ADMIN_ROLE = "admin";
+    String ADMIN_ROLE = "admin";
 
     /**
      * 默认用户角色标识
      */
-    String USER_DEFAULT_ROLE = "user";
+    String DEFAULT_ROLE = "user";
 }

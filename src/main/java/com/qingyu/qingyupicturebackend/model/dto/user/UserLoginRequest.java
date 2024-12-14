@@ -1,4 +1,4 @@
-package com.qingyu.qingyupicturebackend.model.dto;
+package com.qingyu.qingyupicturebackend.model.dto.user;
 
 import lombok.Getter;
 
