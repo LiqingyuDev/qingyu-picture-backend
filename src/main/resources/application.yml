@@ -33,3 +33,10 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.qingyu.qingyupicturebackend.controller
+#腾讯云对象存储
+#cos:
+#  client:
+#    secretId: xxx
+#    secretKey: xxx
+#    region: xxx
+#    bucket: xxx
