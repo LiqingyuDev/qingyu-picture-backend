@@ -5,6 +5,9 @@ server:
 spring:
   application:
     name: qingyu-picture-backend
+  servlet:
+    multipart:
+      max-file-size: 10MB
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/qingyu_picture

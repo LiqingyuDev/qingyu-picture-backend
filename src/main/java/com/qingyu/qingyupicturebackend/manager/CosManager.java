@@ -4,6 +4,7 @@ import com.qcloud.cos.COSClient;
 import com.qcloud.cos.exception.CosClientException;
 import com.qcloud.cos.exception.CosServiceException;
 import com.qcloud.cos.model.*;
+import com.qcloud.cos.model.ciModel.persistence.PicOperations;
 import com.qingyu.qingyupicturebackend.config.CosClientConfig;
 import org.springframework.stereotype.Component;
 
@@ -11,7 +12,7 @@ import javax.annotation.Resource;
 import java.io.File;
 
 /**
- * @Description: 负责与腾讯云对象存储服务 (COS) 进行交互的管理类
+ * @Description: 负责与腾讯云对象存储服务 (COS) 进行交互的管理类(和业务逻辑无关)
  * @Author: liqingyu.dev@gmail.com
  * @CreateTime: 2024/12/17 下午8:03
  */
@@ -60,4 +61,27 @@ public class CosManager {
         // 执行下载操作并返回 COSObject 对象
         return cosClient.getObject(getObjectRequest);
     }
+
+    /**
+     * 上传并解析图片文件，同时获取图片信息。
+     *
+     * @param key  上传到COS的文件键（路径）
+     * @param file 要上传的本地文件
+     * @return 上传结果对象，包含上传状态和其他相关信息
+     */
+    public PutObjectResult putPictureObject(String key, File file) {
+        // 创建上传请求对象
+        PutObjectRequest putObjectRequest = new PutObjectRequest(cosClientConfig.getBucket(), key, file);
+
+        // 配置图片处理选项
+        PicOperations picOperations = new PicOperations();
+        picOperations.setIsPicInfo(1); // 设置为1表示返回图片的所有信息
+
+        // 将图片处理选项添加到上传请求中
+        putObjectRequest.setPicOperations(picOperations);
+
+        // 执行上传操作并返回结果
+        return cosClient.putObject(putObjectRequest);
+    }
+
 }

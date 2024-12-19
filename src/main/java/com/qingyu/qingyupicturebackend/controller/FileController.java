@@ -11,6 +11,7 @@ import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.manager.CosManager;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
@@ -28,9 +29,9 @@ import java.io.IOException;
  */
 @RestController
 @RequestMapping("/file")
+@Slf4j
 public class FileController {
 
-    private static final Logger log = LoggerFactory.getLogger(FileController.class);
     /**
      * 注入 COS 管理类，用于处理文件上传到 COS
      */
