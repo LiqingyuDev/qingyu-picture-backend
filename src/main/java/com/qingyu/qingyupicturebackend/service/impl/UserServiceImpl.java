@@ -171,82 +171,92 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
 //region 用户管理:增删查改
 
-/**
- * 将 User 实体对象转换为 UserVO 对象。
- *
- * @param user 需要转换的 User 实体对象
- * @return 转换后的 UserVO 对象，如果传入的 User 对象为 null，则返回 null
- */
-@Override
-public UserVO getUserVO(User user) {
-    if (user == null) {
-        return null;
+    /**
+     * 将 User 实体对象转换为 UserVO 对象。
+     *
+     * @param user 需要转换的 User 实体对象
+     * @return 转换后的 UserVO 对象，如果传入的 User 对象为 null，则返回 null
+     */
+    @Override
+    public UserVO getUserVO(User user) {
+        if (user == null) {
+            return null;
+        }
+        UserVO userVO = new UserVO();
+        BeanUtils.copyProperties(user, userVO);
+        return userVO;
     }
-    UserVO userVO = new UserVO();
-    BeanUtils.copyProperties(user, userVO);
-    return userVO;
-}
 
-/**
- * 将 User 实体对象列表转换为 UserVO 对象列表。
- *
- * @param userList 需要转换的 User 实体对象列表
- * @return 转换后的 UserVO 对象列表，如果传入的列表为空，则返回空列表
- */
-@Override
-public List<UserVO> getUserVOList(List<User> userList) {
-    if (CollUtil.isEmpty(userList)) {
-        return new ArrayList<>();
+    /**
+     * 将 User 实体对象列表转换为 UserVO 对象列表。
+     *
+     * @param userList 需要转换的 User 实体对象列表
+     * @return 转换后的 UserVO 对象列表，如果传入的列表为空，则返回空列表
+     */
+    @Override
+    public List<UserVO> getUserVOList(List<User> userList) {
+        if (CollUtil.isEmpty(userList)) {
+            return new ArrayList<>();
+        }
+        return userList.stream().map(this::getUserVO).collect(Collectors.toList());
     }
-    return userList.stream().map(this::getUserVO).collect(Collectors.toList());
-}
 
-/**
- * 根据实体类获取查询条件。
- *
- * @param userQueryRequest 包含查询条件的请求对象
- * @return 构建好的 QueryWrapper 对象，用于后续的数据库查询
- * @throws BusinessException 如果请求参数为空，则抛出业务异常
- */
-@Override
-public QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest) {
-    if (userQueryRequest == null) {
-        throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
+    /**
+     * 根据实体类获取查询条件。
+     *
+     * @param userQueryRequest 包含查询条件的请求对象
+     * @return 构建好的 QueryWrapper 对象，用于后续的数据库查询
+     * @throws BusinessException 如果请求参数为空，则抛出业务异常
+     */
+    @Override
+    public QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest) {
+        if (userQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
+        }
+        Long id = userQueryRequest.getId();
+        String userAccount = userQueryRequest.getUserAccount();
+        String userName = userQueryRequest.getUserName();
+        String userProfile = userQueryRequest.getUserProfile();
+        String userRole = userQueryRequest.getUserRole();
+        String sortField = userQueryRequest.getSortField();
+        String sortOrder = userQueryRequest.getSortOrder();
+
+        // 创建一个 QueryWrapper 对象，用于构建查询条件
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+
+        // 如果 id 不为空，则添加等于条件
+        queryWrapper.eq(ObjUtil.isNotNull(id), "id", id);
+
+        // 如果 userRole 不为空且不为单个空白字符，则添加等于条件
+        queryWrapper.eq(StrUtil.isNotBlank(userRole), "userRole", userRole);
+
+        // 如果 userAccount 不为空且不为单个空白字符，则添加模糊匹配条件
+        queryWrapper.like(StrUtil.isNotBlank(userAccount), "userAccount", userAccount);
+
+        // 如果 userName 不为空且不为单个空白字符，则添加模糊匹配条件
+        queryWrapper.like(StrUtil.isNotBlank(userName), "userName", userName);
+
+        // 如果 userProfile 不为空且不为单个空白字符，则添加模糊匹配条件
+        queryWrapper.like(StrUtil.isNotBlank(userProfile), "userProfile", userProfile);
+
+        // 如果 sortOrder 为 "ascend"，则执行升序排序；否则执行降序排序
+        queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals("ascend"), sortField);
+
+        return queryWrapper;
     }
-    Long id = userQueryRequest.getId();
-    String userAccount = userQueryRequest.getUserAccount();
-    String userName = userQueryRequest.getUserName();
-    String userProfile = userQueryRequest.getUserProfile();
-    String userRole = userQueryRequest.getUserRole();
-    String sortField = userQueryRequest.getSortField();
-    String sortOrder = userQueryRequest.getSortOrder();
 
-    // 创建一个 QueryWrapper 对象，用于构建查询条件
-    QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+    /**
+     * 判断是否为管理员
+     * @param user
+     * @return
+     */
+    @Override
+    public boolean isAdmin(User user) {
 
-    // 如果 id 不为空，则添加等于条件
-    queryWrapper.eq(ObjUtil.isNotNull(id), "id", id);
-
-    // 如果 userRole 不为空且不为单个空白字符，则添加等于条件
-    queryWrapper.eq(StrUtil.isNotBlank(userRole), "userRole", userRole);
-
-    // 如果 userAccount 不为空且不为单个空白字符，则添加模糊匹配条件
-    queryWrapper.like(StrUtil.isNotBlank(userAccount), "userAccount", userAccount);
-
-    // 如果 userName 不为空且不为单个空白字符，则添加模糊匹配条件
-    queryWrapper.like(StrUtil.isNotBlank(userName), "userName", userName);
-
-    // 如果 userProfile 不为空且不为单个空白字符，则添加模糊匹配条件
-    queryWrapper.like(StrUtil.isNotBlank(userProfile), "userProfile", userProfile);
-
-    // 如果 sortOrder 为 "ascend"，则执行升序排序；否则执行降序排序
-    queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals("ascend"), sortField);
-
-    return queryWrapper;
-}
+        return user != null && UserConstant.ADMIN_ROLE.equals(user.getUserRole());
+    }
 
 //endregion
-
 
 
 }

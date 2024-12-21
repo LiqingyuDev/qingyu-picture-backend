@@ -19,7 +19,6 @@ import java.util.List;
  * @createDate 2024-12-09 20:02:37
  */
 public interface UserService extends IService<User> {
-    //region用户基础功能
 
     /**
      * 用户注册
@@ -72,19 +71,21 @@ public interface UserService extends IService<User> {
      * @return 注销是否成功
      */
     Boolean userLogout(HttpServletRequest request);
-    //endregion
 
-    //region 用户管理:增删查改
     UserVO getUserVO(User user);
 
     List<UserVO> getUserVOList(List<User> userList);
 
     /**
      * 获取查询条件
+     *
      * @param userQueryRequest
      * @return
      */
     QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest);
+    /**
+     * 判断是否为管理员
+     */
+    boolean isAdmin(User user);
 
-    //endregion
 }
