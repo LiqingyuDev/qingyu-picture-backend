@@ -2,6 +2,7 @@ package com.qingyu.qingyupicturebackend.controller;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.conditions.update.UpdateChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qingyu.qingyupicturebackend.annotation.AuthCheck;
@@ -107,12 +108,11 @@ public class PictureController {
      * 【管理员】更新图片信息
      *
      * @param pictureUpdateRequest 包含更新信息的请求对象
-     * @param request              HTTP 请求对象，用于获取当前登录用户信息
      * @return 更新操作的结果响应
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest, HttpServletRequest request) {
+    public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest) {
 
         // 校验参数
         ThrowUtils.throwIf(pictureUpdateRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
@@ -247,8 +247,9 @@ public class PictureController {
         // 取值
         int current = pictureQueryRequest.getCurrent();
         int pageSize = pictureQueryRequest.getPageSize();
+        QueryWrapper<Picture> queryWrapper = pictureService.getQueryWrapper(pictureQueryRequest);
         // 查询数据库
-        Page<Picture> picturePage = pictureService.page(new Page<>(current, pageSize), pictureService.getQueryWrapper(pictureQueryRequest));
+        Page<Picture> picturePage = pictureService.page(new Page<>(current, pageSize), queryWrapper);
         return ResultUtils.success(picturePage);
     }
 
@@ -260,8 +261,12 @@ public class PictureController {
     @GetMapping("/tag_category")
     public BaseResponse<PictureTagCategory> listPictureTagCategory() {
         PictureTagCategory pictureTagCategory = new PictureTagCategory();
-        List<String> tagList = Arrays.asList("热门", "搞笑", "生活", "高清", "艺术", "校园", "背景", "简历", "创意");
-        List<String> categoryList = Arrays.asList("模板", "电商", "表情包", "素材", "海报");
+        // 初始化精简标签列表
+        List<String> tagList = Arrays.asList("自然", "人物", "二次元", "美女", "城市", "科技", "艺术", "美食", "旅行", "运动", "宠物", "节日");
+        // 初始化大分类列表
+        List<String> categoryList = Arrays.asList("壁纸", "插画", "摄影", "图标", "海报", "头像", "表情包", "模板", "电商素材");
+
+
         pictureTagCategory.setTagList(tagList);
         pictureTagCategory.setCategoryList(categoryList);
         return ResultUtils.success(pictureTagCategory);
