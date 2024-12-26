@@ -15,6 +15,7 @@ import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
 import com.qingyu.qingyupicturebackend.model.dto.picture.*;
 import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.qingyu.qingyupicturebackend.model.entity.User;
+import com.qingyu.qingyupicturebackend.model.enums.PictureReviewStatuesEnum;
 import com.qingyu.qingyupicturebackend.model.vo.PictureTagCategory;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
 import com.qingyu.qingyupicturebackend.service.PictureService;
@@ -54,14 +55,18 @@ public class PictureController {
      * @param request              当前的HTTP请求对象，用于获取登录用户信息
      * @return 返回包含上传成功图片信息的BaseResponse对象
      */
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     @PostMapping("/upload")
     public BaseResponse<PictureVO> uploadPicture(@RequestPart("file") MultipartFile file, PictureUploadRequest pictureUploadRequest, HttpServletRequest request) {
         // 校验参数
         ThrowUtils.throwIf(file == null, ErrorCode.PARAMS_ERROR, "上传文件为空");
         ThrowUtils.throwIf(pictureUploadRequest == null, ErrorCode.PARAMS_ERROR, "上传参数为空");
-        // 调用图片上传服务
+        // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
+        // 获取图片信息
+        Picture pictureById = pictureService.getById(pictureUploadRequest.getId());
+        // 填充默认审核状态
+        pictureService.fillReviewParams(pictureById, loginUser);
+        // 上传图片
         PictureVO pictureVO = pictureService.uploadPicture(file, pictureUploadRequest, loginUser);
         return ResultUtils.success(pictureVO);
     }
@@ -108,27 +113,38 @@ public class PictureController {
      * 【管理员】更新图片信息
      *
      * @param pictureUpdateRequest 包含更新信息的请求对象
+     * @param request              HTTP 请求对象，用于获取当前登录用户信息
      * @return 更新操作的结果响应
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest) {
-
-        // 校验参数
+    public BaseResponse<Boolean> updatePicture(@RequestBody PictureUpdateRequest pictureUpdateRequest, HttpServletRequest request) {
+        // 校验
         ThrowUtils.throwIf(pictureUpdateRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         ThrowUtils.throwIf(BeanUtil.isEmpty(pictureService.getById(pictureUpdateRequest.getId())), ErrorCode.PARAMS_ERROR, "修改的图片不存在");
-        //dto转换entity
+        // 将请求参数转换为实体对象
         Picture picture = new Picture();
         BeanUtil.copyProperties(pictureUpdateRequest, picture);
-        //list转为json字符串
+
+        // 将标签列表转换为JSON字符串并设置到实体对象中
         picture.setTags(JSONUtil.toJsonStr(pictureUpdateRequest.getTags()));
-        //图片数据校验
+
+        // 校验图片数据的有效性
         pictureService.validPicture(picture);
-        //操作数据库
+
+        // 获取图片信息
+        Picture pictureById = pictureService.getById(picture.getId());
+
+        // 填充默认审核状态
+        pictureService.fillReviewParams(pictureById, userService.getLoginUser(request));
+
+        // 更新图片信息到数据库
         boolean updatedById = pictureService.updateById(picture);
         ThrowUtils.throwIf(!updatedById, ErrorCode.OPERATION_ERROR, "更新失败");
+        // 返回成功响应
         return ResultUtils.success(true);
     }
+
 
     /**
      * 【用户】更新图片信息
@@ -158,6 +174,8 @@ public class PictureController {
         if (!loginUserId.equals(picture.getUserId()) && !userService.isAdmin(loginUser)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限修改");
         }
+        //填充默认审核状态
+        pictureService.fillReviewParams(picture, loginUser);
         //操作数据库
         boolean updatedById = pictureService.updateById(picture);
         ThrowUtils.throwIf(!updatedById, ErrorCode.OPERATION_ERROR, "更新失败");
@@ -210,29 +228,6 @@ public class PictureController {
     }
 
     /**
-     * 分页获取图片列表（需要脱敏和限制条数）
-     *
-     * @param pictureQueryRequest 包含分页和查询条件的请求对象
-     * @param request             HTTP 请求对象，用于获取当前登录用户信息
-     * @return 包含分页结果的成功响应
-     */
-    @PostMapping("/list/page/vo")
-    public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
-        // 校验参数
-        ThrowUtils.throwIf(pictureQueryRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
-        // 取值
-        int current = pictureQueryRequest.getCurrent();
-        int pageSize = pictureQueryRequest.getPageSize();
-        // 限制爬虫：每页最多显示 20 条数据
-        ThrowUtils.throwIf(pageSize > 20, ErrorCode.PARAMS_ERROR, "每页最多显示 20 条数据");
-        // 查询数据库
-        Page<Picture> picturePage = pictureService.page(new Page<>(current, pageSize), pictureService.getQueryWrapper(pictureQueryRequest));
-        // 封装返回结果
-        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
-        return ResultUtils.success(pictureVOPage);
-    }
-
-    /**
      * 【管理员】分页获取图片列表（不需要脱敏和限制条数）
      *
      * @param pictureQueryRequest 包含分页和查询条件的请求对象
@@ -247,7 +242,10 @@ public class PictureController {
         // 取值
         int current = pictureQueryRequest.getCurrent();
         int pageSize = pictureQueryRequest.getPageSize();
+        //只给用户展示过审数据
+        pictureQueryRequest.setReviewStatus(PictureReviewStatuesEnum.REVIEWING.getValue());
         QueryWrapper<Picture> queryWrapper = pictureService.getQueryWrapper(pictureQueryRequest);
+
         // 查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, pageSize), queryWrapper);
         return ResultUtils.success(picturePage);

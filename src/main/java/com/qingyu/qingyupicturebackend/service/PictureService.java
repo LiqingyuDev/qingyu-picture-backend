@@ -7,37 +7,69 @@ import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadRequest;
 import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.qingyu.qingyupicturebackend.model.entity.User;
+import com.qingyu.qingyupicturebackend.model.request.PictureReviewRequest;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 
 /**
-* @author qingyu
-* @description 针对表【picture(图片)】的数据库操作Service
-* @createDate 2024-12-18 19:31:25
-*/
+ * @author qingyu
+ * @description 针对表【picture(图片)】的数据库操作Service
+ * @createDate 2024-12-18 19:31:25
+ */
 public interface PictureService extends IService<Picture> {
 
     /**
-     * 上传图片
-     * @param multipartFile
-     * @param pictureUploadRequest
-     * @param loginUser
-     * @return
+     * 上传图片到服务器，并保存图片信息到数据库。
+     *
+     * @param multipartFile          图片文件
+     * @param pictureUploadRequest   图片上传请求参数，包含图片标题、描述等信息
+     * @param loginUser              当前登录用户信息
+     * @return                       返回上传成功的图片信息视图对象（PictureVO）
      */
     PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser);
 
-    /**
-     * 获取查询条件
-     * @param pictureQueryRequest
-     * @return
-     */
-     QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
+    void fillReviewParams(Picture picture, User loginUser);
 
+    /**
+     * 根据查询请求构建查询条件。
+     *
+     * @param pictureQueryRequest    图片查询请求参数，包含查询条件如标题、标签等
+     * @return                       返回封装了查询条件的 QueryWrapper 对象
+     */
+    public QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
+
+    /**
+     * 将数据库中的图片实体转换为视图对象。
+     *
+     * @param picture                数据库中的图片实体
+     * @param request                HTTP 请求对象，用于获取上下文信息
+     * @return                       返回图片视图对象（PictureVO）
+     */
     PictureVO getPictureVO(Picture picture, HttpServletRequest request);
 
+    /**
+     * 分页查询图片，并将结果转换为视图对象列表。
+     *
+     * @param picturePage            分页查询结果
+     * @param request                HTTP 请求对象，用于获取上下文信息
+     * @return                       返回分页后的图片视图对象列表
+     */
     Page<PictureVO> getPictureVOPage(Page<Picture> picturePage, HttpServletRequest request);
 
+    /**
+     * 审核图片，更新图片审核状态。
+     *
+     * @param pictureReviewRequest   图片审核请求参数，包含审核意见和状态
+     * @param loginUser              当前登录用户信息
+     */
+    void doPictureReview(PictureReviewRequest pictureReviewRequest, User loginUser);
+
+    /**
+     * 验证图片信息是否合法。
+     *
+     * @param picture                待验证的图片实体
+     */
     void validPicture(Picture picture);
 }
