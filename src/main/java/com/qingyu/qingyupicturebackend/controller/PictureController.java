@@ -16,6 +16,7 @@ import com.qingyu.qingyupicturebackend.model.dto.picture.*;
 import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.qingyu.qingyupicturebackend.model.entity.User;
 import com.qingyu.qingyupicturebackend.model.enums.PictureReviewStatuesEnum;
+import com.qingyu.qingyupicturebackend.model.request.PictureReviewRequest;
 import com.qingyu.qingyupicturebackend.model.vo.PictureTagCategory;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
 import com.qingyu.qingyupicturebackend.service.PictureService;
@@ -242,13 +243,37 @@ public class PictureController {
         // 取值
         int current = pictureQueryRequest.getCurrent();
         int pageSize = pictureQueryRequest.getPageSize();
-        //只给用户展示过审数据
-        pictureQueryRequest.setReviewStatus(PictureReviewStatuesEnum.REVIEWING.getValue());
+        QueryWrapper<Picture> queryWrapper = pictureService.getQueryWrapper(pictureQueryRequest);
+        // 查询数据库
+        Page<Picture> picturePage = pictureService.page(new Page<>(current, pageSize), queryWrapper);
+        return ResultUtils.success(picturePage);
+    }
+
+    /**
+     * 分页获取图片列表（需要脱敏和限制条数）
+     *
+     * @param pictureQueryRequest 包含分页和查询条件的请求对象
+     * @param request             HTTP 请求对象，用于获取当前登录用户信息
+     * @return 包含分页结果的成功响应
+     */
+    @PostMapping("/list/page/vo")
+    public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
+        // 校验参数
+        ThrowUtils.throwIf(pictureQueryRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
+        // 取值
+        int current = pictureQueryRequest.getCurrent();
+        int pageSize = pictureQueryRequest.getPageSize();
+        // 限制爬虫：每页最多显示 20 条数据
+        ThrowUtils.throwIf(pageSize > 20, ErrorCode.PARAMS_ERROR, "每页最多显示 20 条数据");
+        //设置主页展示时只给用户展示过审数据
+        pictureQueryRequest.setReviewStatus(PictureReviewStatuesEnum.PASS.getValue());
         QueryWrapper<Picture> queryWrapper = pictureService.getQueryWrapper(pictureQueryRequest);
 
         // 查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, pageSize), queryWrapper);
-        return ResultUtils.success(picturePage);
+        // 封装返回结果
+        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        return ResultUtils.success(pictureVOPage);
     }
 
     /**
@@ -269,7 +294,22 @@ public class PictureController {
         pictureTagCategory.setCategoryList(categoryList);
         return ResultUtils.success(pictureTagCategory);
     }
+
     //endregion: 增删查改
+
+    /**
+     * @param pictureReviewRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/review")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> doPictureReview(@RequestBody PictureReviewRequest pictureReviewRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(pictureReviewRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        pictureService.doPictureReview(pictureReviewRequest, loginUser);
+        return ResultUtils.success(true);
+    }
 
 
 }

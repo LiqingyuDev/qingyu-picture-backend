@@ -29,10 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -131,6 +128,10 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         String searchText = pictureQueryRequest.getSearchText();
         String sortField = pictureQueryRequest.getSortField();
         String sortOrder = pictureQueryRequest.getSortOrder();
+        //审核相关
+        Integer reviewStatus = pictureQueryRequest.getReviewStatus();
+        String reviewMessage = pictureQueryRequest.getReviewMessage();
+        Long reviewerId = pictureQueryRequest.getReviewerId();
         //创建查询条件
         QueryWrapper<Picture> queryWrapper = new QueryWrapper<>();
         //从多字段中搜索
@@ -148,6 +149,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         queryWrapper.eq(ObjUtil.isNotEmpty(picHeight), "picHeight", picHeight);
         queryWrapper.eq(ObjUtil.isNotEmpty(picScale), "picScale", picScale);
         queryWrapper.eq(ObjUtil.isNotEmpty(userId), "userId", userId);
+        //审核相关
+        queryWrapper.eq(ObjUtil.isNotEmpty(reviewStatus), "reviewStatus", reviewStatus);
+        queryWrapper.eq(ObjUtil.isNotEmpty(reviewMessage), "reviewMessage", reviewMessage);
+        queryWrapper.eq(ObjUtil.isNotEmpty(reviewerId), "reviewerId", reviewerId);
+
         // Json数组字段查询
         // 遍历 tags 数组，每个标签都使用 like 模糊查询
         if (CollUtil.isNotEmpty(tags)) {
@@ -254,7 +260,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         //取出参数
         Long pictureId = pictureReviewRequest.getId();
         Integer newReviewStatus = pictureReviewRequest.getReviewStatus();
-        String reviewMessage = pictureReviewRequest.getReviewMessage();
+        String newReviewMessage = pictureReviewRequest.getReviewMessage();
         Long loginUserId = loginUser.getId();
         //判断图片是否存在
         Picture oldPictureById = this.getById(pictureId);
@@ -263,13 +269,14 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         ThrowUtils.throwIf(!loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE), ErrorCode.NO_AUTH_ERROR, "无权限审核");
         //判断图片当前审核状态
         Integer oldReviewStatus = oldPictureById.getReviewStatus();
-        ThrowUtils.throwIf(newReviewStatus == oldReviewStatus, ErrorCode.PARAMS_ERROR, "请勿重复审核");
+        ThrowUtils.throwIf(Objects.equals(newReviewStatus, oldReviewStatus), ErrorCode.PARAMS_ERROR, "请勿重复审核");
         //更新图片审核状态
         Picture picture = new Picture();
         picture.setId(pictureId);
-        picture.setReviewStatus(PictureReviewStatuesEnum.PASS.getValue());
-        picture.setReviewMessage("管理员审核通过");
+        picture.setReviewStatus(newReviewStatus);
+        picture.setReviewMessage(newReviewMessage);
         picture.setReviewerId(loginUserId);//审核人id
+        picture.setReviewTime(new Date());
         ThrowUtils.throwIf(!this.updateById(picture), ErrorCode.OPERATION_ERROR, "审核失败");
     }
     /**

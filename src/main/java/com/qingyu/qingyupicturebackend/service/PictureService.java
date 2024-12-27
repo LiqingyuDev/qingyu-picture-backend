@@ -38,7 +38,7 @@ public interface PictureService extends IService<Picture> {
      * @param pictureQueryRequest    图片查询请求参数，包含查询条件如标题、标签等
      * @return                       返回封装了查询条件的 QueryWrapper 对象
      */
-    public QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
+    QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
 
     /**
      * 将数据库中的图片实体转换为视图对象。
