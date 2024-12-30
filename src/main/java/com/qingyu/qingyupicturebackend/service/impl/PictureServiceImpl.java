@@ -11,7 +11,9 @@ import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
-import com.qingyu.qingyupicturebackend.manager.FileManager;
+import com.qingyu.qingyupicturebackend.manager.upload.FilePictureUpload;
+import com.qingyu.qingyupicturebackend.manager.upload.PictureUploadTemplate;
+import com.qingyu.qingyupicturebackend.manager.upload.UrlPictureUpload;
 import com.qingyu.qingyupicturebackend.model.dto.file.UploadPictureResult;
 import com.qingyu.qingyupicturebackend.model.dto.picture.PictureQueryRequest;
 import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadRequest;
@@ -39,23 +41,28 @@ import java.util.stream.Collectors;
  */
 @Service
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> implements PictureService {
-    @Resource
-    private FileManager fileManager;
+    //    @Resource
+//    private FileManager fileManager;
     @Resource
     private PictureMapper pictureMapper;
     @Resource
     private UserService userService;
+    @Resource
+    private UrlPictureUpload urlPictureUpload;
+    @Resource
+    private FilePictureUpload filePictureUpload;
 
     /**
-     * 上传图片
+     * 上传图片服务方法。
      *
-     * @param multipartFile
-     * @param pictureUploadRequest
-     * @param loginUser
-     * @return
+     * @param inputSource          图片来源对象，可以是 MultipartFile 或 URL 字符串。
+     * @param pictureUploadRequest 图片上传请求对象，包含图片 ID 等信息。
+     * @param loginUser            当前登录用户信息。
+     * @return 图片上传成功后的视图对象（VO）。
      */
     @Override
-    public PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser) {
+    public PictureVO uploadPicture(Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser) {
+        // MultipartFile multipartFile = (MultipartFile) inputSource;
         // 校验用户是否已登录
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR, "用户未登录");
 
@@ -75,8 +82,18 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         // 按照用户ID划分目录，图片存在无论更新或创建都要上传
         String uploadPathPrefix = String.format("public/%d", loginUser.getId());
 
-        // 上传图片
-        UploadPictureResult uploadPictureResult = fileManager.uploadPicture(multipartFile, uploadPathPrefix);
+        // 上传图片(根据inputSource参数类型,选择不同的上传方式)
+
+        PictureUploadTemplate pictureUploadTemplate;
+        pictureUploadTemplate = null;
+        if (inputSource instanceof MultipartFile) {
+            pictureUploadTemplate = filePictureUpload;
+        } else if (inputSource instanceof String) {
+            pictureUploadTemplate = urlPictureUpload;
+        } else {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "上传图片类型错误");
+        }
+        UploadPictureResult uploadPictureResult = pictureUploadTemplate.uploadPicture(inputSource, uploadPathPrefix);
 
         Picture picture = new Picture();
         // 构造实体对象
@@ -248,6 +265,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             ThrowUtils.throwIf(introduction.length() > 800, ErrorCode.PARAMS_ERROR, "简介长度不能超过 800 个字符");
         }
     }
+
     /**
      * 审核图片，更新图片审核状态。
      *
@@ -279,6 +297,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         picture.setReviewTime(new Date());
         ThrowUtils.throwIf(!this.updateById(picture), ErrorCode.OPERATION_ERROR, "审核失败");
     }
+
     /**
      * 填充默认审核状态
      *

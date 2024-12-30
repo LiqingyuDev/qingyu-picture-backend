@@ -21,17 +21,16 @@ import javax.servlet.http.HttpServletRequest;
 public interface PictureService extends IService<Picture> {
 
     /**
-     * 上传图片到服务器，并保存图片信息到数据库。
+     * 上传图片服务方法。
      *
-     * @param multipartFile          图片文件
-     * @param pictureUploadRequest   图片上传请求参数，包含图片标题、描述等信息
-     * @param loginUser              当前登录用户信息
-     * @return                       返回上传成功的图片信息视图对象（PictureVO）
+     * @param inputSource          图片来源对象，可以是 MultipartFile 或 URL 字符串。
+     * @param pictureUploadRequest 图片上传请求对象，包含图片 ID 等信息。
+     * @param loginUser            当前登录用户信息。
+     * @return 图片上传成功后的视图对象（VO）。
      */
-    PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser);
+    PictureVO uploadPicture(Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser);
 
     void fillReviewParams(Picture picture, User loginUser);
-
     /**
      * 根据查询请求构建查询条件。
      *

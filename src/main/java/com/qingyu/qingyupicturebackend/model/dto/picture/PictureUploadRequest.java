@@ -16,11 +16,13 @@ import java.io.Serializable;
 public class PictureUploadRequest implements Serializable {
 
     /**
-     * 图片ID
-     *
-     * <p>用于标识上传的图片的唯一ID。</p>
+     * 用于标识上传的图片的唯一ID。
      */
     private Long id;
+    /**
+     * 图片URL
+     */
+    private String fileUrl;
 
     private static final long serialVersionUID = 1L;
 }

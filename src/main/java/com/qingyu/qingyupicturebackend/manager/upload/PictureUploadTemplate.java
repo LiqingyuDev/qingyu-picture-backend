@@ -1,4 +1,4 @@
-package com.qingyu.qingyupicturebackend.manager;
+package com.qingyu.qingyupicturebackend.manager.upload;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
@@ -9,10 +9,9 @@ import com.qcloud.cos.model.ciModel.persistence.ImageInfo;
 import com.qingyu.qingyupicturebackend.config.CosClientConfig;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
-import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
+import com.qingyu.qingyupicturebackend.manager.CosManager;
 import com.qingyu.qingyupicturebackend.model.dto.file.UploadPictureResult;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
@@ -21,18 +20,18 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 
 /**
- * @Description: 对cos进一步封装(和业务逻辑有点关系)
+ * @Description: 通篇上传模板方法
  * @Author: liqingyu.dev@gmail.com
  * @CreateTime: 2024/12/18 下午8:46
  */
 @Slf4j
-@Service
-@Deprecated
-//已弃用,改为模板方法
-public class FileManager {
+public abstract class PictureUploadTemplate {
+    // 允许上传的文件后缀列表
+    protected static final List<String> ALLOWED_SUFFIXES = Arrays.asList("jpeg", "png", "jpg", "webp");
+    // 文件最大大小（2MB）
+    protected static final long MAX_FILE_SIZE = 1024 * 1024 * 2;
     @Resource
     private CosManager cosManager;
     @Resource
@@ -41,16 +40,18 @@ public class FileManager {
     /**
      * 上传图片
      *
-     * @param multipartFile
+     * @param inputSource
      * @param uploadPathPrefix
      * @return
      */
-    public UploadPictureResult uploadPicture(MultipartFile multipartFile, String uploadPathPrefix) {
+    public UploadPictureResult uploadPicture(Object inputSource, String uploadPathPrefix) {
+        //MultipartFile multipartFile = (MultipartFile) inputSource;
         // 校验图片
-        validateFile(multipartFile);
+        validateFile(inputSource);
 
         String uuidPrefix = RandomUtil.randomString(16); // 随机字符串
-        String originalFilename = multipartFile.getOriginalFilename();
+
+        String originalFilename = getOriginalFilename(inputSource);
         String originalSuffix = FileUtil.getSuffix(originalFilename);
         String timestamp = DateUtil.format(new Date(), "yyyyMMddHHmmss");// 更精确的时间戳格式
         String uploadFileName = String.format("%s_%s.%s", timestamp, uuidPrefix, originalSuffix);
@@ -60,8 +61,9 @@ public class FileManager {
         try {
             // 创建临时文件
             file = File.createTempFile(uploadPath, null);
-            // 将上传的文件内容转移到临时文件
-            multipartFile.transferTo(file);
+            // 处理文件来源
+            processFile(inputSource, file);
+
             // 将临时文件上传到 COS
             PutObjectResult putObjectResult = cosManager.putPictureObject(uploadPath, file);
             ImageInfo imageInfo = putObjectResult.getCiUploadResult().getOriginalInfo().getImageInfo();
@@ -102,23 +104,28 @@ public class FileManager {
     }
 
     /**
-     * 校验图片
+     * 处理文件来源，并将上传的文件内容转移到临时文件。
      *
-     * @param multipartFile
+     * @param inputSource 文件来源对象，可以是 MultipartFile 或其他类型(URL)的文件输入源。
+     * @param file
      */
-    private void validateFile(MultipartFile multipartFile) {
-        ThrowUtils.throwIf(multipartFile == null, ErrorCode.PARAMS_ERROR, "文件为空");
-        // 1. 校验大小
-        long picSize = multipartFile.getSize();
-        final long MAX_SIZE = 1024 * 1024 * 2; // 2MB
-        ThrowUtils.throwIf(picSize > MAX_SIZE, ErrorCode.PARAMS_ERROR, "文件大小超过2M");
+    protected abstract void processFile(Object inputSource, File file);
 
-        // 2. 校验格式
-        String fileSuffix = Objects.requireNonNull(FileUtil.getSuffix(multipartFile.getOriginalFilename())).toLowerCase(); // 获取文件后缀并转换为小写
-        // 允许上传的文件后缀列表
-        final List<String> ALLOW_Suffix_LIST = Arrays.asList("jpeg", "png", "jpg", "webp");
-        ThrowUtils.throwIf(!ALLOW_Suffix_LIST.contains(fileSuffix), ErrorCode.PARAMS_ERROR, "文件类型错误");
-    }
+    /**
+     * 获取文件的原始名称。
+     *
+     * @param inputSource 文件来源对象，可以是 MultipartFile 或其他类型的文件输入源。
+     * @return 文件的原始名称（不包含路径）。
+     */
+    protected abstract String getOriginalFilename(Object inputSource);
+
+    /**
+     * 校验文件的有效性，包括文件是否为空、文件大小和文件格式等。
+     *
+     * @param inputSource 文件来源对象，可以是 MultipartFile 或其他类型的文件输入源。
+     */
+    protected abstract void validateFile(Object inputSource);
+
 
     /**
      * 清除临时文件
@@ -134,4 +141,6 @@ public class FileManager {
 
         }
     }
+
+
 }

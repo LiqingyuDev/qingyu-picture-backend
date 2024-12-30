@@ -47,30 +47,60 @@ public class PictureController {
     private UserService userService;
 
     /**
-     * 上传图片（仅限管理员使用）
-     * <p>
-     * 该接口用于管理员上传图片，并返回上传成功的图片信息。
+     * 通过URL上传图片接口。
      *
-     * @param file                 待上传的图片文件
-     * @param pictureUploadRequest 包含图片上传所需参数的对象
-     * @param request              当前的HTTP请求对象，用于获取登录用户信息
-     * @return 返回包含上传成功图片信息的BaseResponse对象
+     * @param pictureUploadRequest 包含图片上传所需参数的对象，特别是文件URL。
+     * @param request              当前的HTTP请求对象，用于获取登录用户信息。
+     * @return 返回包含上传成功图片信息的BaseResponse对象。
      */
-    @PostMapping("/upload")
-    public BaseResponse<PictureVO> uploadPicture(@RequestPart("file") MultipartFile file, PictureUploadRequest pictureUploadRequest, HttpServletRequest request) {
-        // 校验参数
-        ThrowUtils.throwIf(file == null, ErrorCode.PARAMS_ERROR, "上传文件为空");
-        ThrowUtils.throwIf(pictureUploadRequest == null, ErrorCode.PARAMS_ERROR, "上传参数为空");
+    @PostMapping("/upload/url")
+    public BaseResponse<PictureVO> uploadPictureByUrl(@RequestBody PictureUploadRequest pictureUploadRequest, HttpServletRequest request) {
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
-        // 获取图片信息
-        Picture pictureById = pictureService.getById(pictureUploadRequest.getId());
-        // 填充默认审核状态
-        pictureService.fillReviewParams(pictureById, loginUser);
+
+        // 校验并获取图片信息（如果提供了ID）
+        if (pictureUploadRequest.getId() != null) {
+            Picture existingPicture = pictureService.getById(pictureUploadRequest.getId());
+            ThrowUtils.throwIf(existingPicture == null, ErrorCode.PARAMS_ERROR, "图片不存在");
+            if (!existingPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限修改");
+            }
+        }
+
         // 上传图片
-        PictureVO pictureVO = pictureService.uploadPicture(file, pictureUploadRequest, loginUser);
+        PictureVO pictureVO = pictureService.uploadPicture(pictureUploadRequest.getFileUrl(), pictureUploadRequest, loginUser);
+
         return ResultUtils.success(pictureVO);
     }
+
+    /**
+     * 通过文件上传图片接口。
+     *
+     * @param file                 待上传的图片文件。
+     * @param pictureUploadRequest 包含图片上传所需参数的对象。
+     * @param request              当前的HTTP请求对象，用于获取登录用户信息。
+     * @return 返回包含上传成功图片信息的BaseResponse对象。
+     */
+    @PostMapping("/upload/file")
+    public BaseResponse<PictureVO> uploadPicture(@RequestPart("file") MultipartFile file, PictureUploadRequest pictureUploadRequest, HttpServletRequest request) {
+        // 获取当前登录用户
+        User loginUser = userService.getLoginUser(request);
+
+        // 校验并获取图片信息（如果提供了ID）
+        if (pictureUploadRequest.getId() != null) {
+            Picture existingPicture = pictureService.getById(pictureUploadRequest.getId());
+            ThrowUtils.throwIf(existingPicture == null, ErrorCode.PARAMS_ERROR, "图片不存在");
+            if (!existingPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限修改");
+            }
+        }
+
+        // 上传图片
+        PictureVO pictureVO = pictureService.uploadPicture(file, pictureUploadRequest, loginUser);
+
+        return ResultUtils.success(pictureVO);
+    }
+
     //region:增删查改
 
     /**
