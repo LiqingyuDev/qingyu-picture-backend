@@ -1,6 +1,7 @@
 package com.qingyu.qingyupicturebackend.model.vo;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.annotation.*;
 
@@ -122,8 +123,36 @@ public class PictureVO implements Serializable {
         }
         PictureVO pictureVO = new PictureVO();
         BeanUtil.copyProperties(picture, pictureVO);
+
+        // 获取 tags 字符串
+        String tagsStr = picture.getTags();
+        if (tagsStr != null && !tagsStr.isEmpty()) {
+            try {
+                // 尝试将 tags 字符串解析为 JSONArray
+                JSONArray jsonArray = JSONUtil.parseArray(tagsStr);
+                // 将 JSONArray 转换为 List<String>
+                List<String> tagsList = JSONUtil.toList(jsonArray, String.class);
+                pictureVO.setTags(tagsList);
+            } catch (Exception e) {
+                // 处理解析异常，例如记录日志或设置默认值
+                System.err.println("Failed to parse tags for picture: " + picture.getId() + ", error: " + e.getMessage());
+                pictureVO.setTags(null); // 或者设置一个默认值
+            }
+        } else {
+            // 如果 tags 字符串为空或为 null，设置默认值
+            pictureVO.setTags(null); // 或者设置一个默认值
+        }
+
+        return pictureVO;
+    }
+/*    public static PictureVO objToVo(Picture picture) {
+        if (picture == null) {
+            return null;
+        }
+        PictureVO pictureVO = new PictureVO();
+        BeanUtil.copyProperties(picture, pictureVO);
         //tags类型不同需要转换
         pictureVO.setTags(JSONUtil.toList(picture.getTags(), String.class));
         return pictureVO;
-    }
+    }*/
 }
