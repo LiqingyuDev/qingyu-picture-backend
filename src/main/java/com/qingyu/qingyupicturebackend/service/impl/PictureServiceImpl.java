@@ -2,16 +2,24 @@ package com.qingyu.qingyupicturebackend.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.lang.TypeReference;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONException;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.classmate.Annotations;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
+import com.qingyu.qingyupicturebackend.manager.cache.CacheStrategy;
 import com.qingyu.qingyupicturebackend.manager.upload.FilePictureUpload;
 import com.qingyu.qingyupicturebackend.manager.upload.PictureUploadTemplate;
 import com.qingyu.qingyupicturebackend.manager.upload.UrlPictureUpload;
@@ -29,18 +37,22 @@ import com.qingyu.qingyupicturebackend.service.PictureService;
 import com.qingyu.qingyupicturebackend.mapper.PictureMapper;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -51,6 +63,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> implements PictureService {
+
     //    @Resource
 //    private FileManager fileManager;
     @Resource
@@ -61,6 +74,16 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     private UrlPictureUpload urlPictureUpload;
     @Resource
     private FilePictureUpload filePictureUpload;
+
+    private final CacheStrategy cacheStrategy;
+
+    public PictureServiceImpl(CacheStrategy cacheStrategy) {
+        this.cacheStrategy = cacheStrategy;
+    }
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
 
     /**
      * 上传图片服务方法。
@@ -245,6 +268,58 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         pictureVOPage.setRecords(pictureVOList);
         return pictureVOPage;
     }
+
+
+    /**
+     * 分页获取图片列表并使用缓存
+     *
+     * @param pictureQueryRequest 查询请求对象
+     * @param request             HTTP 请求对象
+     * @return 分页结果
+     */
+    @Override
+    public Page<PictureVO> listPictureVOByPage(PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
+        // 获取分页参数
+        int current = pictureQueryRequest.getCurrent();
+        int pageSize = pictureQueryRequest.getPageSize();
+
+        // 设置查询条件，确保主页展示时只返回已过审的数据
+        pictureQueryRequest.setReviewStatus(PictureReviewStatuesEnum.PASS.getValue());
+        QueryWrapper<Picture> queryWrapper = getQueryWrapper(pictureQueryRequest);
+
+        // 构建缓存 key
+        final String interfaceName = "qingyu-picture:listPictureVOByPage:";
+        final String queryCondition = JSONUtil.toJsonStr(pictureQueryRequest);
+        final String queryHashKey = DigestUtils.md5Hex(queryCondition);
+        final String key = interfaceName + queryHashKey;
+        // 尝试从缓存中获取数据
+        String cacheValue = cacheStrategy.get(key);
+        if (StringUtils.isNotBlank(cacheValue)) {
+            log.debug("Cache value for key {}: {}", key, cacheValue);
+            try {
+                Page<PictureVO> page = JSONUtil.toBean(cacheValue, Page.class);
+                return page;
+            } catch (JSONException e) {
+                log.error("Failed to parse JSON from cache for key {}: {}", key, e.getMessage());
+                // 清除无效缓存数据
+                //cacheStrategy.delete(key);
+                // 继续执行后续逻辑
+            }
+        }
+
+        // 如果缓存中没有数据，则从数据库中查询
+        Page<Picture> picturePage = page(new Page<>(current, pageSize), queryWrapper);
+
+        // 封装查询结果并转换为 VO 对象
+        Page<PictureVO> pictureVOPage = getPictureVOPage(picturePage, request);
+        // 将查询结果写入缓存
+        final int randomExpireTime = RandomUtil.randomInt(5, 15);
+        cacheStrategy.set(key, JSONUtil.toJsonStr(pictureVOPage), randomExpireTime, TimeUnit.MINUTES);
+        log.debug("Set cache for key: {} with expire time: {} minutes", key, randomExpireTime);
+        // 返回查询结果
+        return pictureVOPage;
+    }
+
 
     /**
      * 校验图片对象的有效性

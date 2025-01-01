@@ -68,6 +68,15 @@ public interface PictureService extends IService<Picture> {
     void doPictureReview(PictureReviewRequest pictureReviewRequest, User loginUser);
 
     /**
+     * 分页获取图片列表并使用缓存
+     *
+     * @param pictureQueryRequest 查询请求对象
+     * @param request             HTTP 请求对象
+     * @return 分页结果
+     */
+    Page<PictureVO> listPictureVOByPage(PictureQueryRequest pictureQueryRequest, HttpServletRequest request);
+
+    /**
      * 验证图片信息是否合法。
      *
      * @param picture 待验证的图片实体

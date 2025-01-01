@@ -1,6 +1,9 @@
 package com.qingyu.qingyupicturebackend.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.TypeReference;
+import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.conditions.update.UpdateChainWrapper;
@@ -21,6 +24,9 @@ import com.qingyu.qingyupicturebackend.model.vo.PictureTagCategory;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
 import com.qingyu.qingyupicturebackend.service.PictureService;
 import com.qingyu.qingyupicturebackend.service.UserService;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,6 +37,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static com.qingyu.qingyupicturebackend.constant.UserConstant.USER_LOGIN_STATE;
 
@@ -46,6 +53,7 @@ public class PictureController {
     private PictureService pictureService;
     @Resource
     private UserService userService;
+
 
     /**
      * 通过URL上传图片接口。
@@ -281,12 +289,13 @@ public class PictureController {
     }
 
     /**
-     * 分页获取图片列表（需要脱敏和限制条数）
+     * 分页获取图片列表（需要脱敏和限制条数）,未使用缓存
      *
      * @param pictureQueryRequest 包含分页和查询条件的请求对象
      * @param request             HTTP 请求对象，用于获取当前登录用户信息
      * @return 包含分页结果的成功响应
      */
+/*
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
         // 校验参数
@@ -304,6 +313,36 @@ public class PictureController {
         Page<Picture> picturePage = pictureService.page(new Page<>(current, pageSize), queryWrapper);
         // 封装返回结果
         Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        return ResultUtils.success(pictureVOPage);
+    }
+*/
+
+    /**
+     * 分页获取图片列表（需要脱敏和限制条数）
+     *
+     * @param pictureQueryRequest 包含分页和查询条件的请求对象
+     * @param request             HTTP 请求对象，用于获取当前登录用户信息
+     * @return 包含分页结果的成功响应
+     */
+    /**
+     * 分页获取图片列表（需要脱敏和限制条数），使用缓存
+     *
+     * @param pictureQueryRequest 包含分页和查询条件的请求对象
+     * @param request             HTTP 请求对象，用于获取当前登录用户信息
+     * @return 包含分页结果的成功响应
+     */
+    @PostMapping("/list/page/vo")
+    public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
+        // 校验请求参数是否为空
+        ThrowUtils.throwIf(pictureQueryRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
+        // 获取分页参数
+        //int current = pictureQueryRequest.getCurrent();
+        int pageSize = pictureQueryRequest.getPageSize();
+        // 限制每页最多显示20条数据，防止爬虫滥用
+        ThrowUtils.throwIf(pageSize > 20, ErrorCode.PARAMS_ERROR, "每页最多显示 20 条数据");
+        // 调用Service方法获取分页数据
+        Page<PictureVO> pictureVOPage = pictureService.listPictureVOByPage(pictureQueryRequest, request);
+        // 返回查询结果
         return ResultUtils.success(pictureVOPage);
     }
 
@@ -351,8 +390,7 @@ public class PictureController {
      */
     @PostMapping("/upload/batch")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public ResponseEntity<Integer> uploadPictureByBatch(@RequestBody PictureUploadByBatchRequest pictureUploadByBatchRequest,
-                                                        HttpServletRequest request) {
+    public ResponseEntity<Integer> uploadPictureByBatch(@RequestBody PictureUploadByBatchRequest pictureUploadByBatchRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(pictureUploadByBatchRequest == null, ErrorCode.PARAMS_ERROR);
         User loginUser = userService.getLoginUser(request);
         Integer count = pictureService.uploadPictureByBatch(pictureUploadByBatchRequest, loginUser);
