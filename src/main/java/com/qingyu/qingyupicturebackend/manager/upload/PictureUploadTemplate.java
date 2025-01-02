@@ -1,11 +1,14 @@
 package com.qingyu.qingyupicturebackend.manager.upload;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.RandomUtil;
 import com.qcloud.cos.model.PutObjectResult;
+import com.qcloud.cos.model.ciModel.persistence.CIObject;
 import com.qcloud.cos.model.ciModel.persistence.ImageInfo;
+import com.qcloud.cos.model.ciModel.persistence.ProcessResults;
 import com.qingyu.qingyupicturebackend.config.CosClientConfig;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
@@ -37,12 +40,13 @@ public abstract class PictureUploadTemplate {
     @Resource
     private CosClientConfig cosClientConfig;
 
+
     /**
      * 上传图片
      *
-     * @param inputSource
-     * @param uploadPathPrefix
-     * @return
+     * @param inputSource      文件来源对象，可以是 MultipartFile 或其他类型的文件输入源。
+     * @param uploadPathPrefix 上传路径前缀。
+     * @return 上传图片的结果。
      */
     public UploadPictureResult uploadPicture(Object inputSource, String uploadPathPrefix) {
         //MultipartFile multipartFile = (MultipartFile) inputSource;
@@ -66,33 +70,19 @@ public abstract class PictureUploadTemplate {
 
             // 将临时文件上传到 COS
             PutObjectResult putObjectResult = cosManager.putPictureObject(uploadPath, file);
+            // 获取图片信息
             ImageInfo imageInfo = putObjectResult.getCiUploadResult().getOriginalInfo().getImageInfo();
-            //计算宽高比例
-            String format = imageInfo.getFormat();
-            int width = imageInfo.getWidth();
-            int height = imageInfo.getHeight();
-
-// 计算宽高比
-            double picScale = 0;
-            if (height != 0) { // 避免除以零的情况
-                // 使用 NumberUtil 对宽高比进行四舍五入，保留两位小数
-                picScale = NumberUtil.round(width * 1.0 / height, 2).doubleValue();
-                log.info("四舍五入后的宽高比: " + picScale);
-            } else {
-                log.info("高度不能为零，无法计算宽高比。");
+            // 获取图片处理结果
+            ProcessResults processResultList = putObjectResult.getCiUploadResult().getProcessResults();
+            List<CIObject> objectList = processResultList.getObjectList();
+            if (CollUtil.isNotEmpty(objectList)) {
+                // 从格式转换列表获取第一个 CIObject 对象
+                CIObject ciObject = objectList.get(0);
+                //封装返回结果
+                return buildResult(originalFilename, ciObject);
             }
-            //封装返回结果
-            UploadPictureResult uploadPictureResult = new UploadPictureResult();
-            uploadPictureResult.setUrl(cosClientConfig.getHost() + uploadPath);
-            log.info("上传成功,url:{}", uploadPictureResult.getUrl());
-            uploadPictureResult.setPicName(FileUtil.mainName(originalFilename));
-            uploadPictureResult.setPicSize(FileUtil.size(file));
-            uploadPictureResult.setPicWidth(width);
-            uploadPictureResult.setPicHeight(height);
-            uploadPictureResult.setPicScale(picScale);
-            uploadPictureResult.setPicFormat(format);
-            // 返回文件地址
-            return uploadPictureResult;
+            // 封装返回结果
+            return buildResult(originalFilename, file, uploadPath, imageInfo);
         } catch (IOException e) {
             // 捕获并处理 IO 异常
             log.error("文件上传失败,filepath:{}", uploadPath);
@@ -101,6 +91,30 @@ public abstract class PictureUploadTemplate {
             //临时文件清理
             clearTempFile(file);
         }
+    }
+
+    /**
+     * 构建上传图片的结果，使用 CIObject 对象中的信息。
+     *
+     * @param originalFilename 原始文件名。
+     * @param ciObject         CIObject 对象，包含图片处理后的信息。
+     * @return 上传图片的结果。
+     */
+    private UploadPictureResult buildResult(String originalFilename, CIObject ciObject) {
+        return buildResult(originalFilename, ciObject.getFormat(), ciObject.getWidth(), ciObject.getHeight(), ciObject.getSize(), ciObject.getKey());
+    }
+
+    /**
+     * 构建上传图片的结果，使用本地文件和上传路径信息。
+     *
+     * @param originalFilename 原始文件名。
+     * @param file             本地文件对象。
+     * @param uploadPath       上传路径。
+     * @param imageInfo        ImageInfo 对象，包含图片的基本信息。
+     * @return 上传图片的结果。
+     */
+    private UploadPictureResult buildResult(String originalFilename, File file, String uploadPath, ImageInfo imageInfo) {
+        return buildResult(originalFilename, imageInfo.getFormat(), imageInfo.getWidth(), imageInfo.getHeight(), file.length(), uploadPath);
     }
 
     /**
@@ -126,6 +140,41 @@ public abstract class PictureUploadTemplate {
      */
     protected abstract void validateFile(Object inputSource);
 
+
+    /**
+     * 构建上传图片的结果。
+     *
+     * @param originalFilename 原始文件名。
+     * @param format           图片格式。
+     * @param width            图片宽度。
+     * @param height           图片高度。
+     * @param size             图片大小。
+     * @param urlPath          图片的 URL 路径。
+     * @return 上传图片的结果。
+     */
+    private UploadPictureResult buildResult(String originalFilename, String format, int width, int height, long size, String urlPath) {
+        // 计算宽高比
+        double picScale = 0;
+        if (height != 0) { // 避免除以零的情况
+            // 使用 NumberUtil 对宽高比进行四舍五入，保留两位小数
+            picScale = NumberUtil.round(width * 1.0 / height, 2).doubleValue();
+            log.info("四舍五入后的宽高比: " + picScale);
+        } else {
+            log.info("高度不能为零，无法计算宽高比。");
+        }
+
+        // 封装返回结果
+        UploadPictureResult uploadPictureResult = new UploadPictureResult();
+        uploadPictureResult.setUrl(cosClientConfig.getHost() + urlPath);
+        log.info("上传成功, url:{}", uploadPictureResult.getUrl());
+        uploadPictureResult.setPicName(FileUtil.mainName(originalFilename));
+        uploadPictureResult.setPicSize(size);
+        uploadPictureResult.setPicWidth(width);
+        uploadPictureResult.setPicHeight(height);
+        uploadPictureResult.setPicScale(picScale);
+        uploadPictureResult.setPicFormat(format);
+        return uploadPictureResult;
+    }
 
     /**
      * 清除临时文件

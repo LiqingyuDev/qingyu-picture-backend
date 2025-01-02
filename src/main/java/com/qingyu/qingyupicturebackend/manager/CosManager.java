@@ -1,5 +1,6 @@
 package com.qingyu.qingyupicturebackend.manager;
 
+import cn.hutool.core.io.FileUtil;
 import com.qcloud.cos.COSClient;
 import com.qcloud.cos.exception.CosClientException;
 import com.qcloud.cos.exception.CosServiceException;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.io.File;
+import java.util.ArrayList;
 
 /**
  * @Description: 负责与腾讯云对象存储服务 (COS) 进行交互的管理类(和业务逻辑无关)
@@ -72,14 +74,23 @@ public class CosManager {
     public PutObjectResult putPictureObject(String key, File file) {
         // 创建上传请求对象
         PutObjectRequest putObjectRequest = new PutObjectRequest(cosClientConfig.getBucket(), key, file);
-
         // 配置图片处理选项
         PicOperations picOperations = new PicOperations();
         picOperations.setIsPicInfo(1); // 设置为1表示返回图片的所有信息
+        //定义规则列表并添加规则
+        ArrayList<PicOperations.Rule> ruleArrayList = new ArrayList<>();
+        //图片压缩(转成webp格式)-- https://cloud.tencent.com/document/product/460/60524
+        String webpKey = FileUtil.mainName(key) + ".webp";
+        PicOperations.Rule webpRule = new PicOperations.Rule();
+        webpRule.setRule("imageMogr2/format/webp");
+        webpRule.setFileId(webpKey);
+        webpRule.setBucket(cosClientConfig.getBucket());
 
+        ruleArrayList.add(webpRule);
+        // 将规则列表添加到图片处理选项中
+        picOperations.setRules(ruleArrayList);
         // 将图片处理选项添加到上传请求中
         putObjectRequest.setPicOperations(picOperations);
-
         // 执行上传操作并返回结果
         return cosClient.putObject(putObjectRequest);
     }

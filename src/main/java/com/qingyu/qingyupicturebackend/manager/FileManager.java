@@ -1,3 +1,4 @@
+/*
 package com.qingyu.qingyupicturebackend.manager;
 
 import cn.hutool.core.date.DateUtil;
@@ -23,11 +24,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+*/
 /**
  * @Description: 对cos进一步封装(和业务逻辑有点关系)
  * @Author: liqingyu.dev@gmail.com
  * @CreateTime: 2024/12/18 下午8:46
- */
+ *//*
+
 @Slf4j
 @Service
 @Deprecated
@@ -38,13 +41,15 @@ public class FileManager {
     @Resource
     private CosClientConfig cosClientConfig;
 
-    /**
+    */
+/**
      * 上传图片
      *
      * @param multipartFile
      * @param uploadPathPrefix
      * @return
-     */
+     *//*
+
     public UploadPictureResult uploadPicture(MultipartFile multipartFile, String uploadPathPrefix) {
         // 校验图片
         validateFile(multipartFile);
@@ -101,11 +106,13 @@ public class FileManager {
         }
     }
 
-    /**
+    */
+/**
      * 校验图片
      *
      * @param multipartFile
-     */
+     *//*
+
     private void validateFile(MultipartFile multipartFile) {
         ThrowUtils.throwIf(multipartFile == null, ErrorCode.PARAMS_ERROR, "文件为空");
         // 1. 校验大小
@@ -120,9 +127,11 @@ public class FileManager {
         ThrowUtils.throwIf(!ALLOW_Suffix_LIST.contains(fileSuffix), ErrorCode.PARAMS_ERROR, "文件类型错误");
     }
 
-    /**
+    */
+/**
      * 清除临时文件
-     */
+     *//*
+
     private void clearTempFile(File file) {
         // 清理临时文件
         if (file == null) {
@@ -134,4 +143,4 @@ public class FileManager {
 
         }
     }
-}
+}*/
