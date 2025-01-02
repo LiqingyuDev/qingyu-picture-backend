@@ -15,10 +15,12 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.classmate.Annotations;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.qingyu.qingyupicturebackend.constant.CacheConstants;
 import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
+import com.qingyu.qingyupicturebackend.manager.cache.CacheManager;
 import com.qingyu.qingyupicturebackend.manager.cache.CacheStrategy;
 import com.qingyu.qingyupicturebackend.manager.upload.FilePictureUpload;
 import com.qingyu.qingyupicturebackend.manager.upload.PictureUploadTemplate;
@@ -43,6 +45,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.redisson.api.RLock;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -74,6 +77,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     private UrlPictureUpload urlPictureUpload;
     @Resource
     private FilePictureUpload filePictureUpload;
+
 
     private final CacheStrategy cacheStrategy;
 
@@ -287,22 +291,21 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         pictureQueryRequest.setReviewStatus(PictureReviewStatuesEnum.PASS.getValue());
         QueryWrapper<Picture> queryWrapper = getQueryWrapper(pictureQueryRequest);
 
-        // 构建缓存 key
-        final String interfaceName = "qingyu-picture:listPictureVOByPage:";
-        final String queryCondition = JSONUtil.toJsonStr(pictureQueryRequest);
-        final String queryHashKey = DigestUtils.md5Hex(queryCondition);
-        final String key = interfaceName + queryHashKey;
+        // 构建缓存key和锁key
+        final String interfaceName = "listPictureVOByPage";
+        String cacheKey = CacheManager.buildCacheKey(interfaceName, pictureQueryRequest);
+        String lockKey = CacheManager.buildLockKey(interfaceName, pictureQueryRequest);
         // 尝试从缓存中获取数据
-        String cacheValue = cacheStrategy.get(key);
+        String cacheValue = cacheStrategy.get(cacheKey, lockKey);
         if (StringUtils.isNotBlank(cacheValue)) {
-            log.debug("Cache value for key {}: {}", key, cacheValue);
+            log.debug("Cache value for key {}: {}", cacheKey, cacheValue);
             try {
                 Page<PictureVO> page = JSONUtil.toBean(cacheValue, Page.class);
                 return page;
             } catch (JSONException e) {
-                log.error("Failed to parse JSON from cache for key {}: {}", key, e.getMessage());
+                log.error("Failed to parse JSON from cache for key {}: {}", cacheKey, e.getMessage());
                 // 清除无效缓存数据
-                //cacheStrategy.delete(key);
+                cacheStrategy.set(cacheKey, lockKey, null, 0, TimeUnit.SECONDS);
                 // 继续执行后续逻辑
             }
         }
@@ -313,9 +316,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         // 封装查询结果并转换为 VO 对象
         Page<PictureVO> pictureVOPage = getPictureVOPage(picturePage, request);
         // 将查询结果写入缓存
-        final int randomExpireTime = RandomUtil.randomInt(5, 15);
-        cacheStrategy.set(key, JSONUtil.toJsonStr(pictureVOPage), randomExpireTime, TimeUnit.MINUTES);
-        log.debug("Set cache for key: {} with expire time: {} minutes", key, randomExpireTime);
+        final int randomExpireTime = RandomUtil.randomInt(CacheConstants.MIN_EXPIRE_TIME, CacheConstants.MAX_EXPIRE_TIME);
+        cacheStrategy.set(cacheKey, lockKey, JSONUtil.toJsonStr(pictureVOPage), randomExpireTime, TimeUnit.MINUTES);
+        log.debug("Set cache for key: {} with expire time: {} minutes", cacheKey, randomExpireTime);
         // 返回查询结果
         return pictureVOPage;
     }

@@ -1,9 +1,11 @@
 package com.qingyu.qingyupicturebackend.manager.cache;
 
+import com.qingyu.qingyupicturebackend.constant.CacheConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -15,74 +17,72 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 public class MultiLevelCacheStrategy implements CacheStrategy {
+    @Resource
+    private RedisCacheStrategy redisCacheStrategy;
+    @Resource
+    private LocalCacheStrategy localCacheStrategy;
 
     /**
-     * 本地缓存策略实例，用于快速访问和临时存储数据。
-     */
-    private final LocalCacheStrategy localCacheStrategy;
-
-    /**
-     * 分布式缓存策略实例，用于持久化存储和跨节点共享数据。
-     */
-    private final RedisCacheStrategy redisCacheStrategy;
-
-    /**
-     * 构造函数，通过依赖注入初始化本地缓存和分布式缓存策略。
+     * 根据指定的键从缓存中获取字符串值。
      *
-     * @param localCacheStrategy  本地缓存策略实例
-     * @param redisCacheStrategy  分布式缓存策略实例
-     */
-    @Autowired
-    public MultiLevelCacheStrategy(LocalCacheStrategy localCacheStrategy, RedisCacheStrategy redisCacheStrategy) {
-        this.localCacheStrategy = localCacheStrategy;
-        this.redisCacheStrategy = redisCacheStrategy;
-    }
-
-    /**
-     * 根据指定的键从多级缓存中获取字符串值。
-     * <p>
-     * 获取逻辑如下：
-     * - 首先尝试从本地缓存中获取数据，如果命中则直接返回。
-     * - 如果本地缓存未命中，则尝试从分布式缓存中获取数据。
-     * - 如果分布式缓存命中，则将数据更新到本地缓存后返回。
-     * - 如果两级缓存均未命中，则返回 {@code null}。
-     *
-     * @param key 缓存键
+     * @param cacheKey 缓存键
      * @return 如果存在则返回对应的缓存值，否则返回 {@code null}
      */
     @Override
-    public String get(String key) {
-        // 尝试从本地缓存中获取数据
-        String localValue = localCacheStrategy.get(key);
-        if (localValue != null) {
-            log.debug("Hit local cache for key: {}", key);
-            return localValue;
+    public String get(String cacheKey) {
+        // 尝试从本地缓存获取数据
+        String value = localCacheStrategy.get(cacheKey);
+        if (value != null) {
+            log.debug("从本地缓存获取到数据: key={}, value={}", cacheKey, value);
+            return value;
         }
 
-        // 尝试从分布式缓存中获取数据
-        String redisValue = redisCacheStrategy.get(key);
-        if (redisValue != null) {
-            log.debug("Hit Redis cache for key: {}", key);
-            // 更新本地缓存，设置过期时间为5分钟
-            localCacheStrategy.set(key, redisValue, 5, TimeUnit.MINUTES);
-            return redisValue;
+        // 尝试从分布式缓存获取数据
+        value = redisCacheStrategy.get(cacheKey);
+        if (value != null) {
+            log.debug("从分布式缓存获取到数据: key={}, value={}", cacheKey, value);
+            // 将数据同步到本地缓存
+            localCacheStrategy.set(cacheKey, value, CacheConstants.DEFAULT_EXPIRE_TIME, CacheConstants.DEFAULT_TIME_UNIT);
         }
 
-        // 如果缓存中没有数据，返回 null
-        return null;
+        return value;
     }
 
     /**
-     * 将指定的键值对存储到多级缓存中。
-     * <p>
-     * 存储逻辑如下：
-     * - 将数据同时写入本地缓存和分布式缓存。
-     * - 确保数据在两级缓存中保持一致。
+     * 根据指定的键从缓存中获取字符串值，并使用分布式锁进行保护。
+     * 该方法尝试获取分布式锁，如果成功获取锁，则从缓存中获取数据；如果获取锁失败，则返回 {@code null}。
      *
-     * @param key         缓存键
-     * @param value       缓存值
-     * @param expireTime  缓存过期时间（单位由 {@code timeUnit} 指定）
-     * @param timeUnit    时间单位（如秒、分钟、小时等）
+     * @param cacheKey 缓存键
+     * @param lockKey  分布式锁键
+     * @return 如果存在则返回对应的缓存值，否则返回 {@code null}
+     */
+    @Override
+    public String get(String cacheKey, String lockKey) {
+        // 尝试从本地缓存获取数据
+        String value = localCacheStrategy.get(cacheKey);
+        if (value != null) {
+            log.debug("从本地缓存获取到数据: key={}, value={}", cacheKey, value);
+            return value;
+        }
+
+        // 尝试从分布式缓存获取数据，并使用分布式锁保护
+        value = redisCacheStrategy.get(cacheKey, lockKey);
+        if (value != null) {
+            log.debug("从分布式缓存获取到数据: key={}, value={}", cacheKey, value);
+            // 将数据同步到本地缓存
+            localCacheStrategy.set(cacheKey, value, CacheConstants.DEFAULT_EXPIRE_TIME, CacheConstants.DEFAULT_TIME_UNIT);
+        }
+
+        return value;
+    }
+
+    /**
+     * 将指定的键值对存储到缓存中，并设置缓存的过期时间。
+     *
+     * @param key        缓存键
+     * @param value      缓存值
+     * @param expireTime 缓存过期时间（单位由 {@code timeUnit} 指定）
+     * @param timeUnit   时间单位（如秒、分钟、小时等）
      */
     @Override
     public void set(String key, String value, int expireTime, TimeUnit timeUnit) {
@@ -90,6 +90,23 @@ public class MultiLevelCacheStrategy implements CacheStrategy {
         localCacheStrategy.set(key, value, expireTime, timeUnit);
         // 将数据写入分布式缓存
         redisCacheStrategy.set(key, value, expireTime, timeUnit);
-        log.debug("Set cache for key: {} with expire time: {} {}", key, expireTime, timeUnit);
+    }
+
+    /**
+     * 将指定的键值对存储到缓存中，并设置缓存的过期时间。
+     * 该方法使用分布式锁进行保护，确保在写入缓存时只有一个线程可以执行。
+     *
+     * @param key        缓存键
+     * @param lockKey    分布式锁键
+     * @param value      缓存值
+     * @param expireTime 缓存过期时间（单位由 {@code timeUnit} 指定）
+     * @param timeUnit   时间单位（如秒、分钟、小时等）
+     */
+    @Override
+    public void set(String key, String lockKey, String value, int expireTime, TimeUnit timeUnit) {
+        // 使用分布式锁保护
+        redisCacheStrategy.set(key, lockKey, value, expireTime, timeUnit);
+        // 将数据写入本地缓存
+        localCacheStrategy.set(key, value, expireTime, timeUnit);
     }
 }

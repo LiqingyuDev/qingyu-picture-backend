@@ -22,7 +22,7 @@ spring:
     timeout: 6000
 #缓存策略模式(local-本地缓存 redis-分布式缓存 multi-level-多级缓存)
 cache:
-  strategy: local
+  strategy: redis
 
 mybatis-plus:
   configuration:
