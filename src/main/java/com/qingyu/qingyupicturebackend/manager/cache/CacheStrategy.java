@@ -33,22 +33,30 @@ public interface CacheStrategy {
     /**
      * 将指定的键值对存储到缓存中，并设置缓存的过期时间。
      *
-     * @param key        缓存键
+     * @param cacheKey   缓存键
      * @param value      缓存值
      * @param expireTime 缓存过期时间（单位由 {@code timeUnit} 指定）
      * @param timeUnit   时间单位（如秒、分钟、小时等）
      */
-    void set(String key, String value, int expireTime, TimeUnit timeUnit);
+    void set(String cacheKey, String value, int expireTime, TimeUnit timeUnit);
 
     /**
      * 将指定的键值对存储到缓存中，并设置缓存的过期时间。
      * 该方法使用分布式锁进行保护，确保在写入缓存时只有一个线程可以执行。
      *
-     * @param key        缓存键
+     * @param cacheKey   缓存键
      * @param lockKey    分布式锁键
      * @param value      缓存值
      * @param expireTime 缓存过期时间（单位由 {@code timeUnit} 指定）
      * @param timeUnit   时间单位（如秒、分钟、小时等）
      */
-    void set(String key, String lockKey, String value, int expireTime, TimeUnit timeUnit);
+    void set(String cacheKey, String lockKey, String value, int expireTime, TimeUnit timeUnit);
+
+    /**
+     * 根据前缀清除缓存。
+     *
+     * @param prefix 缓存键前缀
+     * @return 是否成功清除缓存
+     */
+    boolean clearCacheByPrefix(String prefix);
 }

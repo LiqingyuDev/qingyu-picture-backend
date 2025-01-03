@@ -8,6 +8,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -111,5 +112,34 @@ public class RedisCacheStrategy implements CacheStrategy {
                 lock.unlock();
             }
         }
+    }
+
+    /**
+     * 根据前缀清除缓存。
+     *
+     * @param prefix 缓存键前缀
+     * @return 是否成功清除缓存
+     */
+    @Override
+    public boolean clearCacheByPrefix(String prefix) {
+        // 确保传入的前缀不为空
+        if (prefix == null || prefix.isEmpty()) {
+            log.error("分布式缓存前缀不能为空");
+            return false;
+        }
+
+        // 获取所有以 prefix 为前缀的缓存键
+        Set<String> keys = stringRedisTemplate.keys(prefix + "*");
+        log.debug("找到的分布式缓存键: {}", keys); // 增加日志信息
+        Long deleteCount = 0L;
+        if (keys != null && !keys.isEmpty()) {
+            deleteCount = stringRedisTemplate.delete(keys);
+            if (deleteCount != null && deleteCount > 0) {
+                log.info("成功清除 {} 个前缀为 {} 的分布式缓存条目", deleteCount, prefix);
+                return true;
+            }
+        }
+        log.warn("清除前缀为 {} 的分布式缓存条目失败，删除计数为 {}", prefix, deleteCount);
+        return false;
     }
 }

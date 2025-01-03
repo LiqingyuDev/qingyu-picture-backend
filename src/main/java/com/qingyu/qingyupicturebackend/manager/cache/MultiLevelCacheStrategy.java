@@ -86,10 +86,11 @@ public class MultiLevelCacheStrategy implements CacheStrategy {
      */
     @Override
     public void set(String key, String value, int expireTime, TimeUnit timeUnit) {
-        // 将数据写入本地缓存
-        localCacheStrategy.set(key, value, expireTime, timeUnit);
         // 将数据写入分布式缓存
         redisCacheStrategy.set(key, value, expireTime, timeUnit);
+        // 将数据写入本地缓存
+        localCacheStrategy.set(key, value, expireTime, timeUnit);
+
     }
 
     /**
@@ -108,5 +109,29 @@ public class MultiLevelCacheStrategy implements CacheStrategy {
         redisCacheStrategy.set(key, lockKey, value, expireTime, timeUnit);
         // 将数据写入本地缓存
         localCacheStrategy.set(key, value, expireTime, timeUnit);
+    }
+
+
+    /**
+     * 根据前缀清除缓存。
+     *
+     * @param prefix 缓存键前缀
+     * @return 是否成功清除缓存
+     */
+    @Override
+    public boolean clearCacheByPrefix(String prefix) {
+        // 清除本地缓存
+        boolean localCacheCleared = localCacheStrategy.clearCacheByPrefix(prefix);
+        // 清除 Redis 缓存
+        boolean redisCacheCleared = redisCacheStrategy.clearCacheByPrefix(prefix);
+
+        // 返回清除结果
+        if (localCacheCleared && redisCacheCleared) {
+            log.info("成功清除前缀为 {} 的所有缓存条目", prefix);
+            return true;
+        } else {
+            log.warn("清除前缀为 {} 的缓存条目失败", prefix);
+            return false;
+        }
     }
 }

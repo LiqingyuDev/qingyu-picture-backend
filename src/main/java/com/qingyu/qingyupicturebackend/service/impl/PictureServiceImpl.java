@@ -77,13 +77,10 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     private UrlPictureUpload urlPictureUpload;
     @Resource
     private FilePictureUpload filePictureUpload;
+    //缓存策略
+    @Resource
+    private CacheStrategy cacheStrategy;
 
-
-    private final CacheStrategy cacheStrategy;
-
-    public PictureServiceImpl(CacheStrategy cacheStrategy) {
-        this.cacheStrategy = cacheStrategy;
-    }
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -296,17 +293,15 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         String cacheKey = CacheManager.buildCacheKey(interfaceName, pictureQueryRequest);
         String lockKey = CacheManager.buildLockKey(interfaceName, pictureQueryRequest);
         // 尝试从缓存中获取数据
-        String cacheValue = cacheStrategy.get(cacheKey, lockKey);
-        if (StringUtils.isNotBlank(cacheValue)) {
-            log.debug("Cache value for key {}: {}", cacheKey, cacheValue);
+        String cacheValueStr = cacheStrategy.get(cacheKey, lockKey);
+        if (cacheValueStr != null) {
+            //本地缓存命中
             try {
-                Page<PictureVO> page = JSONUtil.toBean(cacheValue, Page.class);
+                Page<PictureVO> page = JSONUtil.toBean(cacheValueStr, Page.class);
                 return page;
             } catch (JSONException e) {
                 log.error("Failed to parse JSON from cache for key {}: {}", cacheKey, e.getMessage());
                 // 清除无效缓存数据
-                cacheStrategy.set(cacheKey, lockKey, null, 0, TimeUnit.SECONDS);
-                // 继续执行后续逻辑
             }
         }
 
@@ -315,9 +310,10 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
 
         // 封装查询结果并转换为 VO 对象
         Page<PictureVO> pictureVOPage = getPictureVOPage(picturePage, request);
+        // 存入本地缓存
         // 将查询结果写入缓存
         final int randomExpireTime = RandomUtil.randomInt(CacheConstants.MIN_EXPIRE_TIME, CacheConstants.MAX_EXPIRE_TIME);
-        cacheStrategy.set(cacheKey, lockKey, JSONUtil.toJsonStr(pictureVOPage), randomExpireTime, TimeUnit.MINUTES);
+        cacheStrategy.set(cacheKey, lockKey, JSONUtil.toJsonStr(pictureVOPage), randomExpireTime, TimeUnit.SECONDS);
         log.debug("Set cache for key: {} with expire time: {} minutes", cacheKey, randomExpireTime);
         // 返回查询结果
         return pictureVOPage;
