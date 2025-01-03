@@ -94,7 +94,7 @@ Spring Boot、MyBatis Plus、Hutool 等技术栈，并集成了 Redis 作为缓�
 - **开发者**: 轻语
 - **邮箱**: liqingyu.dev@gmail.com
 - **GitHub后端**: [qingyu-picture-backend](https://github.com/LiqingyuDev/qingyu-picture-backend)
-- **GitHub前端**: [qingyu-picture-frontend](https://github.com/username/qingyu-picture-frontend)
+- **GitHub前端**: [qingyu-picture-frontend](https://github.com/LiqingyuDev/qingyu-picture-frontend)
 
 ---
    
