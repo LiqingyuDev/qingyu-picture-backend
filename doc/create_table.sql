@@ -48,7 +48,9 @@ ALTER TABLE picture
     ADD COLUMN reviewStatus  TINYINT DEFAULT 0 NOT NULL COMMENT '审核状态:0-待审核,1-已审核,2-未过审被拒绝',
     ADD COLUMN reviewMessage VARCHAR(512)      NULL COMMENT '审核信息',
     ADD COLUMN reviewerId    BIGINT            NULL COMMENT '审核人 ID',
-    ADD COLUMN reviewTime    DATETIME          NULL COMMENT '审核时间';
+    ADD COLUMN reviewTime    DATETIME          NULL COMMENT '审核时间',
+    ADD COLUMN thumbnailUrl  varchar(512)      NULL COMMENT '缩略图 url',
+    ADD COLUMN originalUrl   varchar(512)      NULL COMMENT '未压缩原图 url';
 -- 创建基于 reviewStatus 列的索引
 CREATE INDEX idx_reviewStatus ON picture (reviewStatus);
 

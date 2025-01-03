@@ -20,6 +20,7 @@ import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
+import com.qingyu.qingyupicturebackend.manager.CosManager;
 import com.qingyu.qingyupicturebackend.manager.cache.CacheManager;
 import com.qingyu.qingyupicturebackend.manager.cache.CacheStrategy;
 import com.qingyu.qingyupicturebackend.manager.upload.FilePictureUpload;
@@ -46,7 +47,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.redisson.api.RLock;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -67,8 +70,6 @@ import java.util.stream.Collectors;
 @Service
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> implements PictureService {
 
-    //    @Resource
-//    private FileManager fileManager;
     @Resource
     private PictureMapper pictureMapper;
     @Resource
@@ -84,6 +85,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private CosManager cosManager;
 
 
     /**
@@ -422,7 +425,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
                         Picture picture = new Picture();
                         BeanUtil.copyProperties(uploadResult, picture);
                         // 设置图片名称(拼接序号)
-                        picture.setPicName(namePrefix + (uploadCount + 1));
+                        picture.setPicName(String.format("%s (%d)", namePrefix, uploadCount + 1));
+
                         picture.setIntroduction(imageInfo.get("title"));
                         picture.setUserId(loginUser.getId());
                         this.fillReviewParams(picture, loginUser);
@@ -456,6 +460,64 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         }
 
         return uploadCount;
+    }
+
+    /**
+     * 删除图片
+     *
+     * @param id        图片的唯一标识
+     * @param loginUser 当前登录用户
+     * @return 如果删除成功，返回 true；否则返回 false
+     * @throws BusinessException 如果图片不存在或用户无权限删除
+     */
+    @Override
+    public boolean deletePicture(Long id, User loginUser) {
+        // 获取图片
+        Picture picture = getById(id);
+        if (picture == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "图片不存在");
+        }
+        Long builderId = picture.getUserId();
+
+        // 如果不是创建者或管理员，直接返回无权限错误
+        if (!(loginUser.getId().equals(builderId) || loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE))) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限删除");
+        }
+
+        // 先删除数据库
+        boolean deleteResult = removeById(id);
+        if (deleteResult) {
+            // 自动选择不同策略清除缓存
+            cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
+        }
+        // 再删除文件
+        this.clearPictureFile(picture);
+
+        return deleteResult;
+    }
+
+    /**
+     * 异步删除图片文件
+     *
+     * @param oldPictureFile 要删除的图片对象
+     */
+    @Async
+    @Override
+    public void clearPictureFile(Picture oldPictureFile) {
+        // 获取图片的 URL
+        String url = oldPictureFile.getUrl();
+        // 获取图片的原始 URL
+        String originalUrl = oldPictureFile.getOriginalUrl();
+        // 获取图片的缩略图 URL
+        String thumbnailUrl = oldPictureFile.getThumbnailUrl();
+
+        cosManager.deleteObject(url);
+        if (StrUtil.isNotBlank(thumbnailUrl)) {
+            cosManager.deleteObject(thumbnailUrl);
+        }
+        if (StrUtil.isNotBlank(originalUrl)) {
+            cosManager.deleteObject(originalUrl);
+        }
     }
 
     /**

@@ -1,3 +1,4 @@
+
 package com.qingyu.qingyupicturebackend.manager.upload;
 
 import cn.hutool.core.collection.CollUtil;
@@ -15,7 +16,6 @@ import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.manager.CosManager;
 import com.qingyu.qingyupicturebackend.model.dto.file.UploadPictureResult;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import java.io.File;
@@ -40,7 +40,6 @@ public abstract class PictureUploadTemplate {
     @Resource
     private CosClientConfig cosClientConfig;
 
-
     /**
      * 上传图片
      *
@@ -49,7 +48,6 @@ public abstract class PictureUploadTemplate {
      * @return 上传图片的结果。
      */
     public UploadPictureResult uploadPicture(Object inputSource, String uploadPathPrefix) {
-        //MultipartFile multipartFile = (MultipartFile) inputSource;
         // 校验图片
         validateFile(inputSource);
 
@@ -57,7 +55,7 @@ public abstract class PictureUploadTemplate {
 
         String originalFilename = getOriginalFilename(inputSource);
         String originalSuffix = FileUtil.getSuffix(originalFilename);
-        String timestamp = DateUtil.format(new Date(), "yyyyMMddHHmmss");// 更精确的时间戳格式
+        String timestamp = DateUtil.format(new Date(), "yyyyMMddHHmmss"); // 更精确的时间戳格式
         String uploadFileName = String.format("%s_%s.%s", timestamp, uuidPrefix, originalSuffix);
         String uploadPath = String.format("/%s/%s", uploadPathPrefix, uploadFileName);
 
@@ -76,19 +74,30 @@ public abstract class PictureUploadTemplate {
             ProcessResults processResultList = putObjectResult.getCiUploadResult().getProcessResults();
             List<CIObject> objectList = processResultList.getObjectList();
             if (CollUtil.isNotEmpty(objectList)) {
-                // 从格式转换列表获取第一个 CIObject 对象
-                CIObject ciObject = objectList.get(0);
-                //封装返回结果
-                return buildResult(originalFilename, ciObject);
+                // 从格式转换列表获取 CIObject 对象
+                CIObject compressedCiObject = objectList.size() > 0 ? objectList.get(0) : null; // 压缩
+                CIObject thumbnailCiObject = objectList.size() > 1 ? objectList.get(1) : null; // 缩略图
+
+                // 如果没有压缩图，将缩略图作为默认的压缩图
+                if (thumbnailCiObject == null) {
+                    thumbnailCiObject = compressedCiObject;
+                }
+
+
+                // 封装返回结果
+                String originalUrl = cosClientConfig.getHost() + uploadPath;
+                return buildResult(originalFilename, compressedCiObject, thumbnailCiObject, originalUrl);
             }
+            String originalUrl = cosClientConfig.getHost() + uploadPath;
+
             // 封装返回结果
-            return buildResult(originalFilename, file, uploadPath, imageInfo);
+            return buildResult(originalFilename, file, uploadPath, imageInfo, originalUrl);
         } catch (IOException e) {
             // 捕获并处理 IO 异常
-            log.error("文件上传失败,filepath:{}", uploadPath);
+            log.error("文件上传失败, filepath:{}", uploadPath);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "文件上传失败");
         } finally {
-            //临时文件清理
+            // 临时文件清理
             clearTempFile(file);
         }
     }
@@ -96,12 +105,14 @@ public abstract class PictureUploadTemplate {
     /**
      * 构建上传图片的结果，使用 CIObject 对象中的信息。
      *
-     * @param originalFilename 原始文件名。
-     * @param ciObject         CIObject 对象，包含图片处理后的信息。
+     * @param originalFilename   原始文件名。
+     * @param compressedCiObject CIObject 对象，包含图片处理后的信息。
+     * @param thumbnailCiObject  CIObject 对象，包含缩略图信息。
+     * @param originalUrl        原始图片的 URL。
      * @return 上传图片的结果。
      */
-    private UploadPictureResult buildResult(String originalFilename, CIObject ciObject) {
-        return buildResult(originalFilename, ciObject.getFormat(), ciObject.getWidth(), ciObject.getHeight(), ciObject.getSize(), ciObject.getKey());
+    private UploadPictureResult buildResult(String originalFilename, CIObject compressedCiObject, CIObject thumbnailCiObject, String originalUrl) {
+        return buildResult(originalFilename, compressedCiObject.getFormat(), compressedCiObject.getWidth(), compressedCiObject.getHeight(), compressedCiObject.getSize(), compressedCiObject.getKey(), thumbnailCiObject.getKey(), originalUrl);
     }
 
     /**
@@ -111,10 +122,11 @@ public abstract class PictureUploadTemplate {
      * @param file             本地文件对象。
      * @param uploadPath       上传路径。
      * @param imageInfo        ImageInfo 对象，包含图片的基本信息。
+     * @param originalUrl      原始图片的 URL。
      * @return 上传图片的结果。
      */
-    private UploadPictureResult buildResult(String originalFilename, File file, String uploadPath, ImageInfo imageInfo) {
-        return buildResult(originalFilename, imageInfo.getFormat(), imageInfo.getWidth(), imageInfo.getHeight(), file.length(), uploadPath);
+    private UploadPictureResult buildResult(String originalFilename, File file, String uploadPath, ImageInfo imageInfo, String originalUrl) {
+        return buildResult(originalFilename, imageInfo.getFormat(), imageInfo.getWidth(), imageInfo.getHeight(), file.length(), uploadPath, null, originalUrl);
     }
 
     /**
@@ -140,7 +152,6 @@ public abstract class PictureUploadTemplate {
      */
     protected abstract void validateFile(Object inputSource);
 
-
     /**
      * 构建上传图片的结果。
      *
@@ -150,9 +161,11 @@ public abstract class PictureUploadTemplate {
      * @param height           图片高度。
      * @param size             图片大小。
      * @param urlPath          图片的 URL 路径。
+     * @param thumbnailKey     缩略图的 key。
+     * @param originalUrl      原始图片的 URL。
      * @return 上传图片的结果。
      */
-    private UploadPictureResult buildResult(String originalFilename, String format, int width, int height, long size, String urlPath) {
+    private UploadPictureResult buildResult(String originalFilename, String format, int width, int height, long size, String urlPath, String thumbnailKey, String originalUrl) {
         // 计算宽高比
         double picScale = 0;
         if (height != 0) { // 避免除以零的情况
@@ -165,7 +178,8 @@ public abstract class PictureUploadTemplate {
 
         // 封装返回结果
         UploadPictureResult uploadPictureResult = new UploadPictureResult();
-        uploadPictureResult.setUrl(cosClientConfig.getHost() + urlPath);
+        uploadPictureResult.setUrl(cosClientConfig.getHost() + "/" + urlPath);
+        uploadPictureResult.setOriginalUrl(originalUrl);
         log.info("上传成功, url:{}", uploadPictureResult.getUrl());
         uploadPictureResult.setPicName(FileUtil.mainName(originalFilename));
         uploadPictureResult.setPicSize(size);
@@ -173,6 +187,9 @@ public abstract class PictureUploadTemplate {
         uploadPictureResult.setPicHeight(height);
         uploadPictureResult.setPicScale(picScale);
         uploadPictureResult.setPicFormat(format);
+        if (thumbnailKey != null) {
+            uploadPictureResult.setThumbnailUrl(cosClientConfig.getHost() + "/" + thumbnailKey);
+        }
         return uploadPictureResult;
     }
 
@@ -187,9 +204,6 @@ public abstract class PictureUploadTemplate {
         boolean deleted = file.delete();
         if (!deleted) {
             log.warn("临时文件删除失败, filepath: {}", file.getAbsolutePath());
-
         }
     }
-
-
 }

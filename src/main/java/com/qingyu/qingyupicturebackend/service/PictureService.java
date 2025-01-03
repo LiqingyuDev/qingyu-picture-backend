@@ -2,6 +2,7 @@ package com.qingyu.qingyupicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.model.dto.picture.PictureQueryRequest;
 import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadByBatchRequest;
 import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadRequest;
@@ -86,9 +87,26 @@ public interface PictureService extends IService<Picture> {
     /**
      * 批量爬取图片
      *
-     * @param pictureUpload
+     * @param pictureUploadRequest
      * @param loginUser
      * @return
      */
     Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadRequest, User loginUser);
+
+    /**
+     * 删除图片
+     *
+     * @param id        图片的唯一标识
+     * @param loginUser 当前登录用户
+     * @return 如果删除成功，返回 true；否则返回 false
+     * @throws BusinessException 如果图片不存在或用户无权限删除
+     */
+    boolean deletePicture(Long id, User loginUser);
+
+    /**
+     * 从对象存储中删除图片文件。
+     *
+     * @param oldPictureFile 要删除的图片对象，包含图片的 URL、原始 URL 和缩略图 URL
+     */
+    void clearPictureFile(Picture oldPictureFile);
 }

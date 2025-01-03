@@ -79,6 +79,7 @@ public class CosManager {
         picOperations.setIsPicInfo(1); // 设置为1表示返回图片的所有信息
         //定义规则列表并添加规则
         ArrayList<PicOperations.Rule> ruleArrayList = new ArrayList<>();
+
         //图片压缩(转成webp格式)-- https://cloud.tencent.com/document/product/460/60524
         String webpKey = FileUtil.mainName(key) + ".webp";
         PicOperations.Rule webpRule = new PicOperations.Rule();
@@ -86,7 +87,19 @@ public class CosManager {
         webpRule.setFileId(webpKey);
         webpRule.setBucket(cosClientConfig.getBucket());
 
+        // 定义缩略图规则
+        // 缩略图处理，仅对 > 20 KB 的图片生成缩略图
+        if (file.length() > 2 * 1024) {
+            PicOperations.Rule thumbnailRule = new PicOperations.Rule();
+            thumbnailRule.setBucket(cosClientConfig.getBucket());
+            String thumbnailKey = FileUtil.mainName(key) + "_thumbnail." + FileUtil.getSuffix(key);
+            thumbnailRule.setFileId(thumbnailKey);
+            // 缩放规则 /thumbnail/<Width>x<Height>>（如果大于原图宽高，则不处理）
+            thumbnailRule.setRule(String.format("imageMogr2/thumbnail/%sx%s>", 128, 128));
+            ruleArrayList.add(thumbnailRule);
+        }
         ruleArrayList.add(webpRule);
+
         // 将规则列表添加到图片处理选项中
         picOperations.setRules(ruleArrayList);
         // 将图片处理选项添加到上传请求中
@@ -94,5 +107,18 @@ public class CosManager {
         // 执行上传操作并返回结果
         return cosClient.putObject(putObjectRequest);
     }
+
+    /**
+     * 删除对象
+     *
+     * @param url 文件 url
+     */
+    public void deleteObject(String url) throws CosClientException {
+        String cosBucketName = cosClientConfig.getBucket();
+        String host = cosClientConfig.getHost();
+        String key=url.replace(host+"/", "");
+        cosClient.deleteObject(cosBucketName, key);
+    }
+
 
 }

@@ -2,7 +2,16 @@ server:
   port: 8123
   servlet:
     context-path: /api
+    # cookie 30 天过期
+    session:
+      cookie:
+        max-age: 2592000
 spring:
+  session:
+    # session存储方式
+    store-type: redis
+    # session 30 天过期
+    timeout: 2592000
   application:
     name: qingyu-picture-backend
   servlet:

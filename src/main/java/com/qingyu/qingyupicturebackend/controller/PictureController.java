@@ -1,12 +1,8 @@
 package com.qingyu.qingyupicturebackend.controller;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.lang.TypeReference;
-import cn.hutool.core.util.RandomUtil;
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.extension.conditions.update.UpdateChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qingyu.qingyupicturebackend.annotation.AuthCheck;
 import com.qingyu.qingyupicturebackend.common.BaseResponse;
@@ -16,22 +12,17 @@ import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
-import com.qingyu.qingyupicturebackend.manager.cache.CacheManager;
+import com.qingyu.qingyupicturebackend.manager.CosManager;
 import com.qingyu.qingyupicturebackend.manager.cache.CacheStrategy;
 import com.qingyu.qingyupicturebackend.model.dto.picture.*;
 import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.qingyu.qingyupicturebackend.model.entity.User;
-import com.qingyu.qingyupicturebackend.model.enums.PictureReviewStatuesEnum;
 import com.qingyu.qingyupicturebackend.model.request.PictureReviewRequest;
 import com.qingyu.qingyupicturebackend.model.vo.PictureTagCategory;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
 import com.qingyu.qingyupicturebackend.service.PictureService;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -41,9 +32,6 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import static com.qingyu.qingyupicturebackend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * @Description: 图片控制器
@@ -61,6 +49,8 @@ public class PictureController {
     //缓存策略
     @Resource
     private CacheStrategy cacheStrategy;
+    @Resource
+    private CosManager cosManager;
 
     /**
      * 通过URL上传图片接口。
@@ -132,37 +122,17 @@ public class PictureController {
      */
     @PostMapping("/delete")
     public BaseResponse<Boolean> deletePicture(@RequestBody PictureDeleteRequest pictureDeleteRequest, HttpServletRequest request) {
-        // 校验请求参数是否为空
-        ThrowUtils.throwIf(pictureDeleteRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
-
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
-        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR, "用户未登录");
-
         // 获取图片 ID
         Long id = pictureDeleteRequest.getId();
-        ThrowUtils.throwIf(id == null, ErrorCode.PARAMS_ERROR, "图片 ID 不能为空");
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR, "用户未登录");
 
-        // 获取图片创建者 ID
-        Picture picture = pictureService.getById(id);
-        ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
-        Long builderId = picture.getUserId();
+        // 调用新的 service 方法
+        boolean deleteResult = pictureService.deletePicture(id, loginUser);
 
-        // 如果不是创建者或管理员，直接返回无权限错误
-        if (!(loginUser.getId().equals(builderId) || loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE))) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限删除");
-        }
-
-        // 先删除数据库，再删除 Redis
-        boolean deleteResult = pictureService.removeById(id);
-        // 自动选择不同策略清除缓存
-        // 在调用 clearCacheByPrefix 方法时，去掉占位符
-        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
-
-        ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
-        return ResultUtils.success(true);
+        return ResultUtils.success(deleteResult);
     }
-
     /**
      * 【管理员】更新图片信息
      *
@@ -246,7 +216,7 @@ public class PictureController {
     /**
      * 管理员根据 ID 获取图片（不需要脱敏）
      *
-     * @param id      图片的唯一标识符
+     * @param id 图片的唯一标识符
      * @return 包含图片对象的成功响应
      */
     @GetMapping("/get")
@@ -381,14 +351,15 @@ public class PictureController {
      */
     @PostMapping("/upload/batch")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public ResponseEntity<Integer> uploadPictureByBatch(@RequestBody PictureUploadByBatchRequest pictureUploadByBatchRequest, HttpServletRequest request) {
+    public BaseResponse<Integer> uploadPictureByBatch(@RequestBody PictureUploadByBatchRequest pictureUploadByBatchRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(pictureUploadByBatchRequest == null, ErrorCode.PARAMS_ERROR);
         User loginUser = userService.getLoginUser(request);
         Integer count = pictureService.uploadPictureByBatch(pictureUploadByBatchRequest, loginUser);
         // 自动选择不同策略清除缓存
         // 在调用 clearCacheByPrefix 方法时，去掉占位符
         cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
-        return ResponseEntity.ok(count);
+        return ResultUtils.success(count);
+
     }
 
 }
