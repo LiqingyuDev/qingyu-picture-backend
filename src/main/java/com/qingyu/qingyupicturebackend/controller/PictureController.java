@@ -11,10 +11,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qingyu.qingyupicturebackend.annotation.AuthCheck;
 import com.qingyu.qingyupicturebackend.common.BaseResponse;
 import com.qingyu.qingyupicturebackend.common.ResultUtils;
+import com.qingyu.qingyupicturebackend.constant.CacheConstants;
 import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
+import com.qingyu.qingyupicturebackend.manager.cache.CacheManager;
+import com.qingyu.qingyupicturebackend.manager.cache.CacheStrategy;
 import com.qingyu.qingyupicturebackend.model.dto.picture.*;
 import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.qingyu.qingyupicturebackend.model.entity.User;
@@ -24,6 +27,7 @@ import com.qingyu.qingyupicturebackend.model.vo.PictureTagCategory;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
 import com.qingyu.qingyupicturebackend.service.PictureService;
 import com.qingyu.qingyupicturebackend.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -46,6 +50,7 @@ import static com.qingyu.qingyupicturebackend.constant.UserConstant.USER_LOGIN_S
  * @Author: liqingyu.dev@gmail.com
  * @CreateTime: 2024/12/19 下午12:49
  */
+@Slf4j
 @RestController
 @RequestMapping("/picture")
 public class PictureController {
@@ -53,7 +58,9 @@ public class PictureController {
     private PictureService pictureService;
     @Resource
     private UserService userService;
-
+    //缓存策略
+    @Resource
+    private CacheStrategy cacheStrategy;
 
     /**
      * 通过URL上传图片接口。
@@ -78,7 +85,9 @@ public class PictureController {
 
         // 上传图片
         PictureVO pictureVO = pictureService.uploadPicture(pictureUploadRequest.getFileUrl(), pictureUploadRequest, loginUser);
-
+        // 自动选择不同策略清除缓存
+        // 在调用 clearCacheByPrefix 方法时，去掉占位符
+        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
         return ResultUtils.success(pictureVO);
     }
 
@@ -106,7 +115,9 @@ public class PictureController {
 
         // 上传图片
         PictureVO pictureVO = pictureService.uploadPicture(file, pictureUploadRequest, loginUser);
-
+        // 自动选择不同策略清除缓存
+        // 在调用 clearCacheByPrefix 方法时，去掉占位符
+        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
         return ResultUtils.success(pictureVO);
     }
 
@@ -142,10 +153,13 @@ public class PictureController {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限删除");
         }
 
-        // 执行删除操作
+        // 先删除数据库，再删除 Redis
         boolean deleteResult = pictureService.removeById(id);
-        ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
+        // 自动选择不同策略清除缓存
+        // 在调用 clearCacheByPrefix 方法时，去掉占位符
+        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
 
+        ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
         return ResultUtils.success(true);
     }
 
@@ -181,6 +195,9 @@ public class PictureController {
         // 更新图片信息到数据库
         boolean updatedById = pictureService.updateById(picture);
         ThrowUtils.throwIf(!updatedById, ErrorCode.OPERATION_ERROR, "更新失败");
+        // 自动选择不同策略清除缓存
+        // 在调用 clearCacheByPrefix 方法时，去掉占位符
+        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
         // 返回成功响应
         return ResultUtils.success(true);
     }
@@ -219,6 +236,9 @@ public class PictureController {
         //操作数据库
         boolean updatedById = pictureService.updateById(picture);
         ThrowUtils.throwIf(!updatedById, ErrorCode.OPERATION_ERROR, "更新失败");
+        // 自动选择不同策略清除缓存
+        // 在调用 clearCacheByPrefix 方法时，去掉占位符
+        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
         return ResultUtils.success(true);
     }
 
@@ -227,12 +247,11 @@ public class PictureController {
      * 管理员根据 ID 获取图片（不需要脱敏）
      *
      * @param id      图片的唯一标识符
-     * @param request HTTP 请求对象，用于获取当前登录用户信息
      * @return 包含图片对象的成功响应
      */
     @GetMapping("/get")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Picture> getPictureById(@RequestParam long id, HttpServletRequest request) {
+    public BaseResponse<Picture> getPictureById(@RequestParam long id) {
         // 校验参数是否合法
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR, "无效的图片 ID");
 
@@ -268,7 +287,7 @@ public class PictureController {
     }
 
     /**
-     * 【管理员】分页获取图片列表（不需要脱敏和限制条数）
+     * 【管理员】分页获取图片列表（不需要脱敏和限制条数，不使用缓存）
      *
      * @param pictureQueryRequest 包含分页和查询条件的请求对象
      * @param request             HTTP 请求对象，用于获取当前登录用户信息
@@ -288,34 +307,6 @@ public class PictureController {
         return ResultUtils.success(picturePage);
     }
 
-    /**
-     * 分页获取图片列表（需要脱敏和限制条数）,未使用缓存
-     *
-     * @param pictureQueryRequest 包含分页和查询条件的请求对象
-     * @param request             HTTP 请求对象，用于获取当前登录用户信息
-     * @return 包含分页结果的成功响应
-     */
-/*
-    @PostMapping("/list/page/vo")
-    public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
-        // 校验参数
-        ThrowUtils.throwIf(pictureQueryRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
-        // 取值
-        int current = pictureQueryRequest.getCurrent();
-        int pageSize = pictureQueryRequest.getPageSize();
-        // 限制爬虫：每页最多显示 20 条数据
-        ThrowUtils.throwIf(pageSize > 20, ErrorCode.PARAMS_ERROR, "每页最多显示 20 条数据");
-        //设置主页展示时只给用户展示过审数据
-        pictureQueryRequest.setReviewStatus(PictureReviewStatuesEnum.PASS.getValue());
-        QueryWrapper<Picture> queryWrapper = pictureService.getQueryWrapper(pictureQueryRequest);
-
-        // 查询数据库
-        Page<Picture> picturePage = pictureService.page(new Page<>(current, pageSize), queryWrapper);
-        // 封装返回结果
-        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
-        return ResultUtils.success(pictureVOPage);
-    }
-*/
 
     /**
      * 分页获取图片列表（需要脱敏和限制条数）
@@ -394,6 +385,9 @@ public class PictureController {
         ThrowUtils.throwIf(pictureUploadByBatchRequest == null, ErrorCode.PARAMS_ERROR);
         User loginUser = userService.getLoginUser(request);
         Integer count = pictureService.uploadPictureByBatch(pictureUploadByBatchRequest, loginUser);
+        // 自动选择不同策略清除缓存
+        // 在调用 clearCacheByPrefix 方法时，去掉占位符
+        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
         return ResponseEntity.ok(count);
     }
 

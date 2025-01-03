@@ -1,4 +1,4 @@
-# 青鱼图片库后端 (Qingyu Picture Backend)
+# 轻语云图库后端 (Qingyu Picture Backend)
 
 ## 项目概述
 
@@ -75,23 +75,26 @@ Spring Boot、MyBatis Plus、Hutool 等技术栈，并集成了 Redis 作为缓�
 
 ## 代码贡献
 
-欢迎贡献代码！请遵循以下步骤：
+我们非常欢迎您的贡献！请遵循以下步骤：
 
-1. **Fork** 项目
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开一个 Pull Request
+1. Fork本项目
+2. 创建您的特性分支 (`git checkout -b my-new-feature`)
+3. 提交您的改动 (`git commit -am 'Add some feature'`)
+4. 推送到您的分支 (`git push origin my-new-feature`)
+5. 创建一个新的Pull Request
 
 ## 许可证
 
-本项目采用 [MIT 许可证](LICENSE)。
+本项目采用[MIT许可证](https://opensource.org/licenses/MIT)，请确保您遵守相关条款。
 
 ## 联系方式
 
-- **开发者**: 李庆宇
+如有问题或建议，请通过以下方式联系项目维护者：
+
+- **开发者**: 轻语
 - **邮箱**: liqingyu.dev@gmail.com
-- **项目链接**: [https://github.com/LiqingyuDev/qingyu-picture-backend](https://github.com/your-repo/qingyu-picture-backend)
+- **GitHub后端**: [qingyu-picture-backend](https://github.com/LiqingyuDev/qingyu-picture-backend)
+- **GitHub前端**: [qingyu-picture-frontend](https://github.com/username/qingyu-picture-frontend)
 
 ---
    
