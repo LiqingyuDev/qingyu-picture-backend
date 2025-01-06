@@ -1,14 +1,18 @@
 package com.qingyu.qingyupicturebackend.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.qingyu.qingyupicturebackend.constant.UserConstant;
+import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
 import com.qingyu.qingyupicturebackend.mapper.SpaceMapper;
+import com.qingyu.qingyupicturebackend.model.dto.space.SpaceAddRequest;
 import com.qingyu.qingyupicturebackend.model.dto.space.SpaceQueryRequest;
 import com.qingyu.qingyupicturebackend.model.entity.Space;
 import com.qingyu.qingyupicturebackend.model.entity.User;
@@ -18,12 +22,16 @@ import com.qingyu.qingyupicturebackend.model.vo.UserVO;
 import com.qingyu.qingyupicturebackend.service.SpaceService;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +43,60 @@ import java.util.stream.Collectors;
 public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements SpaceService {
     @Resource
     private UserService userService;
+
+    private final ConcurrentHashMap<Long, Lock> userLocks = new ConcurrentHashMap<>();
+    @Resource
+    TransactionTemplate transactionTemplate;
+
+    @Override
+    public Long addSpace(SpaceAddRequest spaceAddRequest, User loginUser) {
+        // 将请求参数转换为实体对象
+        Space space = new Space();
+        BeanUtil.copyProperties(spaceAddRequest, space);
+        // 自动填充私有数据
+        if (StrUtil.isBlank(space.getSpaceName())) {
+            space.setSpaceName("默认空间");
+        }
+        if (space.getSpaceLevel() == null) {
+            // 私有普通版
+            space.setSpaceLevel(SpaceLevelEnum.COMMON.getValue());
+        }
+        // 自动填充空间级别相关数据
+        this.fillSpaceBySpaceLevel(space);
+        space.setUserId(loginUser.getId());
+        // 校验空间数据的有效性
+        this.validSpace(space, true);
+        // 权限校验
+        SpaceLevelEnum spaceLevelEnum = SpaceLevelEnum.getEnumByValue(space.getSpaceLevel());
+
+        if (spaceLevelEnum != SpaceLevelEnum.COMMON && !loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限创建当前级别的空间");
+        }
+
+        // 创建空间(同一用户只能有一个空间)
+        Long userId = loginUser.getId();
+        Lock lock = userLocks.computeIfAbsent(userId, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            return transactionTemplate.execute(status -> {
+
+                // 校验是否存在私有空间
+                boolean exists = lambdaQuery().eq(Space::getUserId, loginUser.getId()).exists();
+                if (exists) {
+                    // 存在私有空间
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "用户只能有一个私有空间");
+
+                } else {
+                    // 不存在私有空间，则创建空间
+                    boolean saveResult = this.save(space);
+                    ThrowUtils.throwIf(!saveResult, ErrorCode.OPERATION_ERROR, "保存空间失败");
+                }
+                return space.getId();
+            });
+        } finally {
+            lock.unlock();
+        }
+    }
 
     /**
      * 构建空间查询条件。
@@ -162,10 +224,10 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
 
         // 如果空间等级为普通级别，则设置最大文件数量和最大存储容量
         if (SpaceLevelEnum.COMMON.equals(enumByValue)) {
-            if (space.getMaxCount() == null){
+            if (space.getMaxCount() == null) {
                 space.setMaxCount(enumByValue.getMaxCount());
             }
-            if (space.getMaxSize() == null){
+            if (space.getMaxSize() == null) {
                 space.setMaxSize(enumByValue.getMaxSize());
             }
         }

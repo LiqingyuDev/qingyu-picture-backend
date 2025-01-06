@@ -1,15 +1,19 @@
 package com.qingyu.qingyupicturebackend.model.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
 
 import java.util.Date;
-import lombok.Data;
 
 /**
  * 空间
+ *
  * @TableName space
  */
-@TableName(value ="space")
+@TableName(value = "space")
 @Data
 public class Space {
     /**
@@ -27,6 +31,11 @@ public class Space {
      * 空间级别：0-普通版 1-专业版 2-旗舰版
      */
     private Integer spaceLevel;
+
+    /**
+     * 空间Id
+     */
+    private String spaceId;
 
     /**
      * 空间图片的最大总大小

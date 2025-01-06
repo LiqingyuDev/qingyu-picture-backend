@@ -3,8 +3,10 @@ package com.qingyu.qingyupicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.qingyu.qingyupicturebackend.model.dto.space.SpaceAddRequest;
 import com.qingyu.qingyupicturebackend.model.dto.space.SpaceQueryRequest;
 import com.qingyu.qingyupicturebackend.model.entity.Space;
+import com.qingyu.qingyupicturebackend.model.entity.User;
 import com.qingyu.qingyupicturebackend.model.vo.SpaceVO;
 
 import javax.servlet.http.HttpServletRequest;
@@ -15,6 +17,8 @@ import javax.servlet.http.HttpServletRequest;
  * @createDate 2025-01-04 19:33:00
  */
 public interface SpaceService extends IService<Space> {
+
+    Long addSpace(SpaceAddRequest spaceAddRequest, User loginUser);
 
     /**
      * 根据查询请求构建查询条件。

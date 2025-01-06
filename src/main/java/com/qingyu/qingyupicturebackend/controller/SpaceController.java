@@ -37,10 +37,11 @@ public class SpaceController {
     @Resource
     private UserService userService;
 
+
     // region: 增删查改
 
     /**
-     * 创建空间。
+     * 创建私有空间。
      *
      * @param spaceAddRequest 包含创建空间所需参数的对象
      * @param request         当前的HTTP请求对象，用于获取登录用户信息
@@ -48,31 +49,15 @@ public class SpaceController {
      * @throws BusinessException 如果用户未登录或创建失败
      */
     @PostMapping("/add")
-    public BaseResponse<SpaceVO> createSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request) {
+    public BaseResponse<Long> addSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request) {
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
+
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR, "用户未登录");
-
-        // 将请求参数转换为实体对象
-        Space space = new Space();
-        BeanUtil.copyProperties(spaceAddRequest, space);
-        space.setUserId(loginUser.getId());
-        space.setCreateTime(new Date());
-        space.setEditTime(new Date());
-
-        // 校验空间数据的有效性
-        spaceService.validSpace(space, true);
-
-        // 创建空间
-        boolean saveResult = spaceService.save(space);
-        ThrowUtils.throwIf(!saveResult, ErrorCode.OPERATION_ERROR, "创建失败");
-
-        // 获取创建后的空间信息
-        Space createdSpace = spaceService.getById(space.getId());
-        SpaceVO spaceVO = spaceService.getSpaceVO(createdSpace, request);
-
-        return ResultUtils.success(spaceVO);
+        Long spaceId = spaceService.addSpace(spaceAddRequest, loginUser);
+        return ResultUtils.success(spaceId);
     }
+
 
     /**
      * 根据 ID 删除空间。

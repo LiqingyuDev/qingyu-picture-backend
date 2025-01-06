@@ -30,6 +30,11 @@ public class SpaceVO implements Serializable {
     private Integer spaceLevel;
 
     /**
+     * 空间Id
+     */
+    private String spaceId;
+
+    /**
      * 空间图片的最大总大小
      */
     private Long maxSize;
