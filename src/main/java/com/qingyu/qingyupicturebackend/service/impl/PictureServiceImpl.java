@@ -133,6 +133,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
                 }
             }
 
+            //从对象存储中删除老图
+            clearPictureFile(oldPicture);
+            //因需要更新图片,释放空间额度
+            countSpaceLimit(spaceById, oldPicture, true);
+
         }
 
         // 无论图片ID是否为空，都调用上传服务方法
@@ -180,27 +185,55 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
 
 
         Long finalSpaceId = spaceId;
-        transactionTemplate.execute((status) -> {
-            // 操作数据库
-            boolean saveOrUpdate = this.saveOrUpdate(picture);
-            ThrowUtils.throwIf(!saveOrUpdate, ErrorCode.SYSTEM_ERROR, "图片上传失败");
-            // 更新空间剩余上传大小和上传次数
+        transactionTemplate.execute(status -> {
+            try {
+                // 操作数据库
+                boolean saveOrUpdate = this.saveOrUpdate(picture);
+                ThrowUtils.throwIf(!saveOrUpdate, ErrorCode.SYSTEM_ERROR, "图片上传失败");
 
-            // 构建更新条件
-            LambdaUpdateWrapper<Space> updateWrapper = Wrappers.lambdaUpdate();
-            updateWrapper.eq(Space::getId, finalSpaceId)
-                    .set(Space::getTotalSize, spaceById.getTotalSize() + uploadPictureResult.getPicSize())
-                    .set(Space::getTotalCount, spaceById.getTotalCount() + 1);
+                // 更新空间剩余上传大小和上传次数
+                countSpaceLimit(spaceById, picture, false);
 
-            // 执行更新操作
-            boolean update = spaceService.update(updateWrapper);
-            ThrowUtils.throwIf(!update, ErrorCode.SYSTEM_ERROR, "空间更新失败");
-
-            return null;
+                return null;
+            } catch (Exception e) {
+                status.setRollbackOnly(); // 回滚事务
+                log.error("图片上传失败，事务回滚", e);
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "图片上传失败:" + e.getMessage());
+            }
         });
         // 返回结果
         return PictureVO.objToVo(picture);
     }
+
+    /**
+     * 更新空间额度
+     *
+     * @param space   空间对象
+     * @param picture 图片对象
+     * @param clean   是否是释放空间
+     *                - true: 释放空间，增加剩余空间和上传次数（适用于删除图片文件时）
+     *                - false: 增加空间，减少剩余空间和上传次数（适用于上传或编辑图片文件时）
+     */
+    private void countSpaceLimit(Space space, Picture picture, boolean clean) {
+        LambdaUpdateWrapper<Space> updateWrapper = Wrappers.lambdaUpdate();
+
+        if (clean) {
+            // 释放空间，增加剩余空间和上传次数（适用于删除图片文件时）
+            updateWrapper.eq(Space::getId, space.getId())
+                    .set(Space::getTotalSize, space.getTotalSize() + picture.getPicSize())
+                    .set(Space::getTotalCount, space.getTotalCount() + 1);
+        } else {
+            // 增加空间，减少剩余空间和上传次数（适用于上传或编辑图片文件时）
+            updateWrapper.eq(Space::getId, space.getId())
+                    .set(Space::getTotalSize, space.getTotalSize() - picture.getPicSize())
+                    .set(Space::getTotalCount, space.getTotalCount() - 1);
+        }
+
+        // 执行更新操作
+        boolean update = spaceService.update(updateWrapper);
+        ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "更新空间信息失败");
+    }
+
 
     /**
      * 获取mybatis-plus查询条件
@@ -552,37 +585,18 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         // 获取空间对象
         Space spaceById = spaceService.getById(picture.getSpaceId());
         ThrowUtils.throwIf(spaceById == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-
+        // 1. 先删除数据库
         transactionTemplate.execute(status -> {
-            try {
-                // 1. 先删除数据库
-                boolean deleteResult = this.removeById(id);
-                ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
-                // 2. 更新空间剩余上传大小和上传次数
-                // 构建更新条件
-                LambdaUpdateWrapper<Space> updateWrapper = Wrappers.lambdaUpdate();
-                updateWrapper.eq(Space::getId, spaceById.getId())
-                        .set(Space::getTotalSize, spaceById.getTotalSize() - picture.getPicSize())
-                        .set(Space::getTotalCount, spaceById.getTotalCount() - 1);
-
-                // 执行更新操作
-                boolean update = spaceService.update(updateWrapper);
-                ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "更新空间信息失败");
-
-                // 3. 自动选择不同策略清除缓存
-                cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
-                // 4. 再删除 Cos 文件
-                this.clearPictureFile(picture);
-                return null; // 返回 true 表示事务成功
-            } catch (Exception e) {
-                status.setRollbackOnly(); // 回滚事务
-                log.error("删除图片失败，事务回滚", e);
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除失败{}" + e);
-
-            }
+            boolean deleteResult = this.removeById(spaceById.getId());
+            ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
+            countSpaceLimit(spaceById, picture, true);
+            return null;
         });
 
-
+        // 3. 自动选择不同策略清除缓存
+        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
+        // 4. 再删除 Cos 文件
+        this.clearPictureFile(picture);
         return true;
     }
 
