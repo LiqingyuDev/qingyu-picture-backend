@@ -48,6 +48,12 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
     @Resource
     TransactionTemplate transactionTemplate;
 
+    /**
+     * 添加私有空间
+     * @param spaceAddRequest
+     * @param loginUser
+     * @return
+     */
     @Override
     public Long addSpace(SpaceAddRequest spaceAddRequest, User loginUser) {
         // 将请求参数转换为实体对象

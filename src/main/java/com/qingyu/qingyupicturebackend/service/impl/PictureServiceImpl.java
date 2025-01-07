@@ -8,6 +8,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONException;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.qingyu.qingyupicturebackend.constant.CacheConstants;
@@ -46,6 +48,7 @@ import org.jsoup.select.Elements;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
@@ -81,6 +84,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     private CosManager cosManager;
     @Resource
     private SpaceService spaceService;
+    @Resource
+    private TransactionTemplate transactionTemplate;
 
 
     /**
@@ -100,6 +105,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         // 获取请求中的图片ID
         Long pictureId = pictureUploadRequest != null ? pictureUploadRequest.getId() : null;
         Long spaceId = pictureUploadRequest.getSpaceId();
+        Space spaceById = spaceService.getById(spaceId);
 
         // 如果ID不为空,更新，则检查图片是否存在
         if (pictureId != null) {
@@ -110,14 +116,23 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             // 校验用户是否有权限修改图片
             validPictureAuth(loginUser, oldPicture);
             //检查两次空间是否一致
-            if (spaceId == null && oldSpaceId != null) {
+
+            if (spaceId == null) {
                 spaceId = oldSpaceId;
-            } else {
-                // 传了 spaceId，必须和原有图片一致
-                if (ObjUtil.notEqual(spaceId, oldPicture.getSpaceId())) {
-                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间 id 不一致");
+            } else if (!ObjUtil.equal(spaceId, oldPicture.getSpaceId())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间 id 不一致");
+            }
+
+            // 校验当前空间剩余额度
+            if (spaceId != null) {
+                if (spaceById.getTotalSize() >= spaceById.getMaxSize()) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间剩余上传大小不足");
+                }
+                if (spaceById.getTotalCount() >= spaceById.getMaxCount()) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间剩余上传次数不足");
                 }
             }
+
         }
 
         // 无论图片ID是否为空，都调用上传服务方法
@@ -163,10 +178,26 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             picture.setCreateTime(new Date());
         }
 
-        // 操作数据库
-        boolean saveOrUpdate = this.saveOrUpdate(picture);
-        ThrowUtils.throwIf(!saveOrUpdate, ErrorCode.SYSTEM_ERROR, "图片上传失败，数据库操作失败");
 
+        Long finalSpaceId = spaceId;
+        transactionTemplate.execute((status) -> {
+            // 操作数据库
+            boolean saveOrUpdate = this.saveOrUpdate(picture);
+            ThrowUtils.throwIf(!saveOrUpdate, ErrorCode.SYSTEM_ERROR, "图片上传失败");
+            // 更新空间剩余上传大小和上传次数
+
+            // 构建更新条件
+            LambdaUpdateWrapper<Space> updateWrapper = Wrappers.lambdaUpdate();
+            updateWrapper.eq(Space::getId, finalSpaceId)
+                    .set(Space::getTotalSize, spaceById.getTotalSize() + uploadPictureResult.getPicSize())
+                    .set(Space::getTotalCount, spaceById.getTotalCount() + 1);
+
+            // 执行更新操作
+            boolean update = spaceService.update(updateWrapper);
+            ThrowUtils.throwIf(!update, ErrorCode.SYSTEM_ERROR, "空间更新失败");
+
+            return null;
+        });
         // 返回结果
         return PictureVO.objToVo(picture);
     }
@@ -518,16 +549,41 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         }
         // 如果不是创建者或管理员，直接返回无权限错误
         validPictureAuth(loginUser, picture);
-        // 1.先删除数据库
-        boolean deleteResult = removeById(id);
-        if (deleteResult) {
-            // 2.自动选择不同策略清除缓存
-            cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
-        }
-        // 3.再删除Cos文件
-        this.clearPictureFile(picture);
+        // 获取空间对象
+        Space spaceById = spaceService.getById(picture.getSpaceId());
+        ThrowUtils.throwIf(spaceById == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
 
-        return deleteResult;
+        transactionTemplate.execute(status -> {
+            try {
+                // 1. 先删除数据库
+                boolean deleteResult = this.removeById(id);
+                ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
+                // 2. 更新空间剩余上传大小和上传次数
+                // 构建更新条件
+                LambdaUpdateWrapper<Space> updateWrapper = Wrappers.lambdaUpdate();
+                updateWrapper.eq(Space::getId, spaceById.getId())
+                        .set(Space::getTotalSize, spaceById.getTotalSize() - picture.getPicSize())
+                        .set(Space::getTotalCount, spaceById.getTotalCount() - 1);
+
+                // 执行更新操作
+                boolean update = spaceService.update(updateWrapper);
+                ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "更新空间信息失败");
+
+                // 3. 自动选择不同策略清除缓存
+                cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
+                // 4. 再删除 Cos 文件
+                this.clearPictureFile(picture);
+                return null; // 返回 true 表示事务成功
+            } catch (Exception e) {
+                status.setRollbackOnly(); // 回滚事务
+                log.error("删除图片失败，事务回滚", e);
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除失败{}" + e);
+
+            }
+        });
+
+
+        return true;
     }
 
     /**

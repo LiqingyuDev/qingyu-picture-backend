@@ -36,7 +36,6 @@ public enum SpaceLevelEnum {
         this.maxCount = maxCount;
         this.maxSize = maxSize;
     }
-
     /**
      * 根据 value 获取枚举
      */

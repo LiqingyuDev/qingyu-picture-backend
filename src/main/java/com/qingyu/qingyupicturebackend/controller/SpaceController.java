@@ -1,7 +1,9 @@
 package com.qingyu.qingyupicturebackend.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qingyu.qingyupicturebackend.annotation.AuthCheck;
 import com.qingyu.qingyupicturebackend.common.BaseResponse;
@@ -11,9 +13,12 @@ import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
 import com.qingyu.qingyupicturebackend.model.dto.space.*;
+import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.qingyu.qingyupicturebackend.model.entity.Space;
 import com.qingyu.qingyupicturebackend.model.entity.User;
+import com.qingyu.qingyupicturebackend.model.enums.SpaceLevelEnum;
 import com.qingyu.qingyupicturebackend.model.vo.SpaceVO;
+import com.qingyu.qingyupicturebackend.service.PictureService;
 import com.qingyu.qingyupicturebackend.service.SpaceService;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +26,10 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author qingyu
@@ -36,6 +44,8 @@ public class SpaceController {
     private SpaceService spaceService;
     @Resource
     private UserService userService;
+    @Resource
+    private PictureService pictureService;
 
 
     // region: 增删查改
@@ -84,6 +94,11 @@ public class SpaceController {
 
         // 删除空间
         boolean removeById = spaceService.removeById(id);
+        //关联删除空间内的图片
+        LambdaQueryWrapper<Picture> queryWrapper = Wrappers.lambdaQuery();
+        queryWrapper.eq(Picture::getSpaceId, id);
+        List<Picture> idList = pictureService.list(queryWrapper);
+        spaceService.removeBatchByIds(idList);
         return ResultUtils.success(removeById);
     }
 
@@ -258,6 +273,28 @@ public class SpaceController {
         Page<Space> spacePage = spaceService.page(new Page<>(current, pageSize), queryWrapper);
 
         return ResultUtils.success(spacePage);
+    }
+
+
+    /**
+     * 获取所有空间级别的列表
+     *
+     * @return 包含所有空间级别的列表的 BaseResponse 对象
+     */
+    @GetMapping("/list/level")
+    public BaseResponse<List<SpaceLevel>> listSpaceLevel() {
+        // 获取所有空间级别的枚举值
+        List<SpaceLevel> spaceLevelList = Arrays.stream(SpaceLevelEnum.values())
+                // 将每个枚举值映射为 SpaceLevel 对象
+                .map(spaceLevelEnum -> new SpaceLevel(
+                        spaceLevelEnum.getValue(),
+                        spaceLevelEnum.getText(),
+                        spaceLevelEnum.getMaxCount(),
+                        spaceLevelEnum.getMaxSize()))
+                .collect(Collectors.toList());
+
+        // 返回包含空间级别列表的成功响应
+        return ResultUtils.success(spaceLevelList);
     }
 
     // endregion: 增删查改
