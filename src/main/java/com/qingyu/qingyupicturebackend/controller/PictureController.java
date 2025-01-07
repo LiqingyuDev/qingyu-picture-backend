@@ -28,9 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -126,13 +124,11 @@ public class PictureController {
         User loginUser = userService.getLoginUser(request);
         // 获取图片 ID
         Long id = pictureDeleteRequest.getId();
-        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR, "用户未登录");
-
         // 调用新的 service 方法
         boolean deleteResult = pictureService.deletePicture(id, loginUser);
-
         return ResultUtils.success(deleteResult);
     }
+
     /**
      * 【管理员】更新图片信息
      *
@@ -182,33 +178,13 @@ public class PictureController {
      */
     @PostMapping("/edit")
     public BaseResponse<Boolean> editPicture(@RequestBody PictureEditRequest pictureEditRequest, HttpServletRequest request) {
-
+        User loginUser = userService.getLoginUser(request);
         // 校验参数
         ThrowUtils.throwIf(pictureEditRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         ThrowUtils.throwIf(BeanUtil.isEmpty(pictureService.getById(pictureEditRequest.getId())), ErrorCode.PARAMS_ERROR, "修改的图片不存在");
-        //dto转换entity
-        Picture picture = new Picture();
-        BeanUtil.copyProperties(pictureEditRequest, picture);
-        //list转为json字符串
-        picture.setTags(JSONUtil.toJsonStr(pictureEditRequest.getTags()));
-        //更新编辑时间
-        picture.setEditTime(new Date());
-        //图片数据校验
-        pictureService.validPicture(picture);
-        //仅本人或管理员可以修改
-        User loginUser = userService.getLoginUser(request);
-        Long loginUserId = loginUser.getId();
-        if (!loginUserId.equals(picture.getUserId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限修改");
-        }
-        //填充默认审核状态
-        pictureService.fillReviewParams(picture, loginUser);
-        //操作数据库
-        boolean updatedById = pictureService.updateById(picture);
-        ThrowUtils.throwIf(!updatedById, ErrorCode.OPERATION_ERROR, "更新失败");
-        // 自动选择不同策略清除缓存
-        // 在调用 clearCacheByPrefix 方法时，去掉占位符
-        cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR, "请先登录");
+        // 调用 service 方法
+        pictureService.editPicture(pictureEditRequest, loginUser);
         return ResultUtils.success(true);
     }
 
@@ -221,13 +197,19 @@ public class PictureController {
      */
     @GetMapping("/get")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Picture> getPictureById(@RequestParam long id) {
+    public BaseResponse<Picture> getPictureById(@RequestParam long id, HttpServletRequest request) {
         // 校验参数是否合法
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR, "无效的图片 ID");
 
         // 查询数据库获取图片信息
         Picture picture = pictureService.getById(id);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
+        //空间权限验证
+        Long spaceId = picture.getSpaceId();
+        if (spaceId != null) {
+            pictureService.validPictureAuth(userService.getLoginUser(request), picture);
+
+        }
 
         // 返回查询到的图片对象
         return ResultUtils.success(picture);
@@ -296,6 +278,7 @@ public class PictureController {
     public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest, HttpServletRequest request) {
         // 校验请求参数是否为空
         ThrowUtils.throwIf(pictureQueryRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
+
         // 获取分页参数
         //int current = pictureQueryRequest.getCurrent();
         int pageSize = pictureQueryRequest.getPageSize();
@@ -359,7 +342,6 @@ public class PictureController {
         // 在调用 clearCacheByPrefix 方法时，去掉占位符
         cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
         return ResultUtils.success(count);
-
     }
 
 }

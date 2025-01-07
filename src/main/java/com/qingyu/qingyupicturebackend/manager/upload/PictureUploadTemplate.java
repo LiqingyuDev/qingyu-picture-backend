@@ -75,7 +75,7 @@ public abstract class PictureUploadTemplate {
             List<CIObject> objectList = processResultList.getObjectList();
             if (CollUtil.isNotEmpty(objectList)) {
                 // 从格式转换列表获取 CIObject 对象
-                CIObject compressedCiObject = objectList.size() > 0 ? objectList.get(0) : null; // 压缩
+                CIObject compressedCiObject = !objectList.isEmpty() ? objectList.get(0) : null; // 压缩
                 CIObject thumbnailCiObject = objectList.size() > 1 ? objectList.get(1) : null; // 缩略图
 
                 // 如果没有压缩图，将缩略图作为默认的压缩图

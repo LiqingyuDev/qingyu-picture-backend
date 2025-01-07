@@ -4,7 +4,6 @@ import com.qingyu.qingyupicturebackend.model.request.PageRequest;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -64,6 +63,14 @@ public class PictureQueryRequest extends PageRequest implements Serializable {
      */
     private String picFormat;
 
+    /**
+     * 空间id
+     */
+    private Long spaceId;
+    /**
+     * 是否只查询 spaceId 为 null 的数据(公开数据)
+     */
+    private Boolean nullSpaceId;
     /**
      * 创建用户 id
      */

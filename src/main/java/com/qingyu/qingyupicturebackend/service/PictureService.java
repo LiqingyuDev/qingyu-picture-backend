@@ -3,6 +3,7 @@ package com.qingyu.qingyupicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
+import com.qingyu.qingyupicturebackend.model.dto.picture.PictureEditRequest;
 import com.qingyu.qingyupicturebackend.model.dto.picture.PictureQueryRequest;
 import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadByBatchRequest;
 import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadRequest;
@@ -11,7 +12,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.qingyu.qingyupicturebackend.model.entity.User;
 import com.qingyu.qingyupicturebackend.model.request.PictureReviewRequest;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -60,6 +60,8 @@ public interface PictureService extends IService<Picture> {
      */
     Page<PictureVO> getPictureVOPage(Page<Picture> picturePage, HttpServletRequest request);
 
+    void validPictureAuth(User loginUser, Picture picture);
+
     /**
      * 审核图片，更新图片审核状态。
      *
@@ -92,6 +94,8 @@ public interface PictureService extends IService<Picture> {
      * @return
      */
     Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadRequest, User loginUser);
+
+    Boolean editPicture(PictureEditRequest pictureEditRequest, User loginUser);
 
     /**
      * 删除图片
