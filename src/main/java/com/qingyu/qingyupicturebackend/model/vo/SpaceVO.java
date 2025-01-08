@@ -15,7 +15,7 @@ import java.util.Date;
 @Data
 public class SpaceVO implements Serializable {
     /**
-     * id
+     * 空间Id
      */
     private Long id;
 
@@ -28,11 +28,6 @@ public class SpaceVO implements Serializable {
      * 空间级别：0-普通版 1-专业版 2-旗舰版
      */
     private Integer spaceLevel;
-
-    /**
-     * 空间Id
-     */
-    private Long spaceId;
 
     /**
      * 空间图片的最大总大小

@@ -68,9 +68,9 @@ public class PictureQueryRequest extends PageRequest implements Serializable {
      */
     private Long spaceId;
     /**
-     * 是否只查询 spaceId 为 null 的数据(公开数据)
+     * 是否只查询 spaceId 为 null 的数据(默认公开数据)
      */
-    private Boolean nullSpaceId;
+    private Boolean nullSpaceId = true;
     /**
      * 创建用户 id
      */

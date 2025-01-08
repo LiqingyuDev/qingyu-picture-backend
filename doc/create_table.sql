@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `space`
     `id`         BIGINT AUTO_INCREMENT COMMENT 'id' PRIMARY KEY,
     `spaceName`  VARCHAR(128)                       NULL COMMENT '空间名称',
     `spaceLevel` INT      DEFAULT 0                 NULL COMMENT '空间级别：0-普通版 1-专业版 2-旗舰版',
-    `spaceId`    INT      DEFAULT NULL COMMENT '空间 id（为空表示公共空间）',
+
     `maxSize`    BIGINT   DEFAULT 0                 NULL COMMENT '空间图片的最大总大小',
     `maxCount`   BIGINT   DEFAULT 0                 NULL COMMENT '空间图片的最大数量',
     `totalSize`  BIGINT   DEFAULT 0                 NULL COMMENT '当前空间下图片的总大小',
