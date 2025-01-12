@@ -61,7 +61,7 @@ public class PictureController {
     public BaseResponse<PictureVO> uploadPictureByUrl(@RequestBody PictureUploadRequest pictureUploadRequest, HttpServletRequest request) {
         // 获取当前登录用户
         User loginUser = userService.getLoginUser(request);
-
+        ThrowUtils.throwIf(pictureUploadRequest == null, ErrorCode.PARAMS_ERROR, "图片信息为空");
         // 校验并获取图片信息（如果提供了ID）
         if (pictureUploadRequest.getId() != null) {
             Picture existingPicture = pictureService.getById(pictureUploadRequest.getId());

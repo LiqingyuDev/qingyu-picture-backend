@@ -78,7 +78,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
         // 权限校验
         SpaceLevelEnum spaceLevelEnum = SpaceLevelEnum.getEnumByValue(space.getSpaceLevel());
 
-        if (spaceLevelEnum != SpaceLevelEnum.COMMON && !loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE)) {
+        if (spaceLevelEnum != SpaceLevelEnum.COMMON && loginUser.getUserRole().equals(UserConstant.DEFAULT_ROLE)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限创建当前级别的空间");
         }
 
@@ -91,9 +91,9 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
 
                 // 校验是否存在私有空间
                 boolean exists = lambdaQuery().eq(Space::getUserId, loginUser.getId()).exists();
-                if (exists) {
+                if (exists&&loginUser.getUserRole().equals(UserConstant.DEFAULT_ROLE)) {
                     // 存在私有空间
-                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "用户只能有一个私有空间");
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "普通用户只能创建一个私有空间");
 
                 } else {
                     // 不存在私有空间，则创建空间

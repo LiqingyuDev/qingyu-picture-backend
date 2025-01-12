@@ -3,14 +3,12 @@ package com.qingyu.qingyupicturebackend.model.vo;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
-import com.baomidou.mybatisplus.annotation.*;
+import com.qingyu.qingyupicturebackend.model.entity.Picture;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
-
-import com.qingyu.qingyupicturebackend.model.entity.Picture;
-import lombok.Data;
 
 /**
  * 图片
@@ -84,6 +82,11 @@ public class PictureVO implements Serializable {
      * 创建用户 id
      */
     private Long userId;
+
+    /**
+     * 空间id
+     */
+    private Long spaceId;
 
     /**
      * 创建时间
