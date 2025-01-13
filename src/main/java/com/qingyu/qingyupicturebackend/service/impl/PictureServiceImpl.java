@@ -616,7 +616,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         ThrowUtils.throwIf(spaceById == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
         // 1. 先删除数据库
         transactionTemplate.execute(status -> {
-            boolean deleteResult = this.removeById(spaceById.getId());
+            boolean deleteResult = this.removeById(id);
             ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
             countSpaceLimit(spaceById, picture, false);
             return null;
