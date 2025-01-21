@@ -4,6 +4,7 @@ import com.qingyu.qingyupicturebackend.model.request.PageRequest;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -80,7 +81,18 @@ public class PictureQueryRequest extends PageRequest implements Serializable {
      * 搜索词（同时搜名称、简介等）
      */
     private String searchText;
-// ----------------------------------------------------------------------------------------------------------------------
+// --------------------图片添加按照照片编辑时间筛选---------------------------------------------
+    /**
+     * 开始编辑时间
+     */
+    private Date startEditTime;
+
+    /**
+     * 结束编辑时间
+     */
+    private Date endEditTime;
+
+// ---------------------------------------------------------------------------------------------------------------------
     /**
      * 状态：0-待审核; 1-通过; 2-拒绝
      */

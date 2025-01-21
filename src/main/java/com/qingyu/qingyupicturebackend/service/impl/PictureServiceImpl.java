@@ -284,6 +284,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         String searchText = pictureQueryRequest.getSearchText();
         String sortField = pictureQueryRequest.getSortField();
         String sortOrder = pictureQueryRequest.getSortOrder();
+
+        Date startEditTime = pictureQueryRequest.getStartEditTime();
+        Date endEditTime = pictureQueryRequest.getEndEditTime();
         //审核相关
         Integer reviewStatus = pictureQueryRequest.getReviewStatus();
         String reviewMessage = pictureQueryRequest.getReviewMessage();
@@ -311,6 +314,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         }
 
         queryWrapper.eq(ObjUtil.isNotEmpty(userId), "userId", userId);
+        //编辑时间相关(包含两边边界值吧)
+        queryWrapper.ge(ObjUtil.isNotEmpty(startEditTime), "editTime", startEditTime);
+        queryWrapper.le(ObjUtil.isNotEmpty(endEditTime), "editTime", endEditTime);
         //审核相关
         queryWrapper.eq(ObjUtil.isNotEmpty(reviewStatus), "reviewStatus", reviewStatus);
         queryWrapper.eq(ObjUtil.isNotEmpty(reviewMessage), "reviewMessage", reviewMessage);
