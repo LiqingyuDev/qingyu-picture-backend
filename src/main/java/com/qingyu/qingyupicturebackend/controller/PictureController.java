@@ -1,10 +1,13 @@
 package com.qingyu.qingyupicturebackend.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qingyu.qingyupicturebackend.annotation.AuthCheck;
+import com.qingyu.qingyupicturebackend.api.ImageSearchApiFacade;
+import com.qingyu.qingyupicturebackend.api.model.ImageSearchResult;
 import com.qingyu.qingyupicturebackend.common.BaseResponse;
 import com.qingyu.qingyupicturebackend.common.ResultUtils;
 import com.qingyu.qingyupicturebackend.constant.CacheConstants;
@@ -342,6 +345,25 @@ public class PictureController {
         // 在调用 clearCacheByPrefix 方法时，去掉占位符
         cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
         return ResultUtils.success(count);
+    }
+
+    /**
+     * 根据图片ID搜索相似图片。
+     *
+     * @param searchPictureByPictureRequest 包含图片ID的请求体
+     * @return 包含相似图片搜索结果的响应对象
+     */
+    @PostMapping("/search/picture")
+    public BaseResponse<List<ImageSearchResult>> searchPictureByPicture(@RequestBody SearchPictureByPictureRequest searchPictureByPictureRequest) {
+        ThrowUtils.throwIf(searchPictureByPictureRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
+        //根据id取出图片url
+        Long pictureId = searchPictureByPictureRequest.getPictureId();
+        Picture pictureById = pictureService.getById(pictureId);
+        ThrowUtils.throwIf(pictureById == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
+        String url = pictureById.getThumbnailUrl();
+        ThrowUtils.throwIf(StrUtil.isBlank(url), ErrorCode.PARAMS_ERROR, "图片url为空");
+        List<ImageSearchResult> imageSearchResults = ImageSearchApiFacade.searchSimilarImage(url);
+        return ResultUtils.success(imageSearchResults);
     }
 
 }
