@@ -54,6 +54,8 @@ public abstract class PictureUploadTemplate {
         String uuidPrefix = RandomUtil.randomString(16); // 随机字符串
 
         String originalFilename = getOriginalFilename(inputSource);
+        //限制一下原始文件名的长度，避免文件名过长
+        originalFilename = originalFilename.length() > 100 ? originalFilename.substring(0, 100) : originalFilename;
         String originalSuffix = FileUtil.getSuffix(originalFilename);
         String timestamp = DateUtil.format(new Date(), "yyyyMMddHHmmss"); // 更精确的时间戳格式
         String uploadFileName = String.format("%s_%s.%s", timestamp, uuidPrefix, originalSuffix);
