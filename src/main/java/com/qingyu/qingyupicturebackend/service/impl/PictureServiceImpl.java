@@ -617,16 +617,26 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         }
         // 如果不是创建者或管理员，直接返回无权限错误
         validPictureAuth(loginUser, picture);
-        // 获取空间对象
-        Space spaceById = spaceService.getById(picture.getSpaceId());
-        ThrowUtils.throwIf(spaceById == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-        // 1. 先删除数据库
-        transactionTemplate.execute(status -> {
+        //判断是否是私有空间内图片
+        Long spaceId = picture.getSpaceId();
+        if (spaceId != null) {
+            // 获取空间对象
+            Space spaceById = spaceService.getById(spaceId);
+            ThrowUtils.throwIf(spaceById == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+            // 1. 先删除数据库
+            transactionTemplate.execute(status -> {
+                boolean deleteResult = this.removeById(id);
+                ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
+                countSpaceLimit(spaceById, picture, false);
+                return null;
+            });
+
+        }else {
+            //直接删除数据库
             boolean deleteResult = this.removeById(id);
             ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
-            countSpaceLimit(spaceById, picture, false);
-            return null;
-        });
+        }
+
 
         // 3. 自动选择不同策略清除缓存
         cacheStrategy.clearCacheByPrefix(CacheConstants.CACHE_KEY_PREFIX.replace("%s", ""));
