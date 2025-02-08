@@ -48,7 +48,7 @@ public class SpaceController {
     private PictureService pictureService;
 
 
-    // region: 增删查改
+    // region  增删查改
 
     /**
      * 创建私有空间。
@@ -297,5 +297,5 @@ public class SpaceController {
         return ResultUtils.success(spaceLevelList);
     }
 
-    // endregion: 增删查改
+    // endregion  增删查改
 }

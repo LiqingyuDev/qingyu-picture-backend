@@ -1,9 +1,9 @@
-package com.qingyu.qingyupicturebackend.api;
+package com.qingyu.qingyupicturebackend.api.imagesearch;
 
-import com.qingyu.qingyupicturebackend.api.model.ImageSearchResult;
-import com.qingyu.qingyupicturebackend.api.sub.GetImageFirstUrlApi;
-import com.qingyu.qingyupicturebackend.api.sub.GetImageListApi;
-import com.qingyu.qingyupicturebackend.api.sub.GetImagePageUrlApi;
+import com.qingyu.qingyupicturebackend.api.imagesearch.sub.model.ImageSearchResult;
+import com.qingyu.qingyupicturebackend.api.imagesearch.sub.GetImageFirstUrlApi;
+import com.qingyu.qingyupicturebackend.api.imagesearch.sub.GetImageListApi;
+import com.qingyu.qingyupicturebackend.api.imagesearch.sub.GetImagePageUrlApi;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;

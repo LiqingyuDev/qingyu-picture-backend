@@ -2,13 +2,12 @@ package com.qingyu.qingyupicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.qingyu.qingyupicturebackend.exception.BusinessException;
-import com.qingyu.qingyupicturebackend.model.dto.picture.PictureEditRequest;
-import com.qingyu.qingyupicturebackend.model.dto.picture.PictureQueryRequest;
-import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadByBatchRequest;
-import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadRequest;
-import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.CreateOutPaintingTaskResponse;
+import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.GetOutPaintingTaskResponse;
+import com.qingyu.qingyupicturebackend.exception.BusinessException;
+import com.qingyu.qingyupicturebackend.model.dto.picture.*;
+import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.qingyu.qingyupicturebackend.model.entity.User;
 import com.qingyu.qingyupicturebackend.model.request.PictureReviewRequest;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
@@ -113,4 +112,22 @@ public interface PictureService extends IService<Picture> {
      * @param oldPictureFile 要删除的图片对象，包含图片的 URL、原始 URL 和缩略图 URL
      */
     void clearPictureFile(Picture oldPictureFile);
+    //region AI图片相关
+
+    /**
+     * AI智能扩图
+     *
+     * @param createPictureOutPaintingTaskRequest
+     * @return
+     */
+    CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
+
+    /**
+     * 查询AI扩图结果
+     *
+     * @param taskId
+     * @return
+     */
+    GetOutPaintingTaskResponse getPictureOutPaintingTask(String taskId);
+    //endregion AI图片相关
 }

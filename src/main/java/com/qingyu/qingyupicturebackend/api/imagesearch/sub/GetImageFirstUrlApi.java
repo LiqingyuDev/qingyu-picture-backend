@@ -1,4 +1,4 @@
-package com.qingyu.qingyupicturebackend.api.sub;
+package com.qingyu.qingyupicturebackend.api.imagesearch.sub;
 
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;

@@ -1,4 +1,4 @@
-package com.qingyu.qingyupicturebackend.api.sub;
+package com.qingyu.qingyupicturebackend.api.imagesearch.sub;
 
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
@@ -31,29 +31,30 @@ public class GetImagePageUrlApi {
 
         try {
             // 2. 发送请求
-            HttpResponse response = HttpRequest.post(url)
+            try (HttpResponse response = HttpRequest.post(url)
                     .form(formParams)
-                    .execute();
+                    .execute()) {
 
-            // 3. 处理响应
-            if (response.isOk()) {
-                String responseBody = response.body();
-                log.info("从服务器获取的响应: {}", responseBody);
+                // 3. 处理响应
+                if (response.isOk()) {
+                    String responseBody = response.body();
+                    log.info("从服务器获取的响应: {}", responseBody);
 
-                // 解析JSON响应
-                JSONObject jsonObject = JSONUtil.parseObj(responseBody);
-                if (jsonObject.getInt("status") == 0) {
-                    JSONObject dataObject = jsonObject.getJSONObject("data");
-                    if (dataObject != null) {
-                        return dataObject.getStr("url");
+                    // 解析JSON响应
+                    JSONObject jsonObject = JSONUtil.parseObj(responseBody);
+                    if (jsonObject.getInt("status") == 0) {
+                        JSONObject dataObject = jsonObject.getJSONObject("data");
+                        if (dataObject != null) {
+                            return dataObject.getStr("url");
+                        } else {
+                            log.error("响应中未找到 'data' 字段: {}", responseBody);
+                        }
                     } else {
-                        log.error("响应中未找到 'data' 字段: {}", responseBody);
+                        log.error("获取图片页面URL失败。响应消息: {}", jsonObject.getStr("msg"));
                     }
                 } else {
-                    log.error("获取图片页面URL失败。响应消息: {}", jsonObject.getStr("msg"));
+                    log.error("获取图片页面URL失败。响应码: {}", response.getStatus());
                 }
-            } else {
-                log.error("获取图片页面URL失败。响应码: {}", response.getStatus());
             }
         } catch (Exception e) {
             log.error("获取图片页面URL时发生错误", e);

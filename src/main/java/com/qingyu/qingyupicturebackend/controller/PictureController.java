@@ -6,8 +6,10 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qingyu.qingyupicturebackend.annotation.AuthCheck;
-import com.qingyu.qingyupicturebackend.api.ImageSearchApiFacade;
-import com.qingyu.qingyupicturebackend.api.model.ImageSearchResult;
+import com.qingyu.qingyupicturebackend.api.imagesearch.ImageSearchApiFacade;
+import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.CreateOutPaintingTaskResponse;
+import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.GetOutPaintingTaskResponse;
+import com.qingyu.qingyupicturebackend.api.imagesearch.sub.model.ImageSearchResult;
 import com.qingyu.qingyupicturebackend.common.BaseResponse;
 import com.qingyu.qingyupicturebackend.common.ResultUtils;
 import com.qingyu.qingyupicturebackend.constant.CacheConstants;
@@ -112,7 +114,7 @@ public class PictureController {
         return ResultUtils.success(pictureVO);
     }
 
-    //region:增删查改
+    //region 增删查改
 
     /**
      * 根据 ID 删除图片
@@ -312,7 +314,7 @@ public class PictureController {
         return ResultUtils.success(pictureTagCategory);
     }
 
-    //endregion: 增删查改
+    //endregion  增删查改
 
     /**
      * @param pictureReviewRequest
@@ -365,5 +367,41 @@ public class PictureController {
         List<ImageSearchResult> imageSearchResults = ImageSearchApiFacade.searchSimilarImage(url);
         return ResultUtils.success(imageSearchResults);
     }
+
+    //region  AI智能扩图
+
+    /**
+     * 创建AI智能扩图任务。
+     *
+     * @param createPictureOutPaintingTaskRequest 扩图任务请求对象
+     * @param request                             HTTP请求对象
+     * @return 包含任务响应的成功响应
+     */
+    @PostMapping("/out_painting/create_task")
+    public BaseResponse<CreateOutPaintingTaskResponse> createPictureOutPaintingTask(
+            @RequestBody CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest,
+            HttpServletRequest request) {
+        ThrowUtils.throwIf(createPictureOutPaintingTaskRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
+
+        User loginUser = userService.getLoginUser(request);
+        CreateOutPaintingTaskResponse taskResponse = pictureService.createPictureOutPaintingTask(createPictureOutPaintingTaskRequest, loginUser);
+        return ResultUtils.success(taskResponse);
+    }
+
+    /**
+     * 获取AI智能扩图任务详情。
+     *
+     * @param taskId 扩图任务ID
+     * @return 包含任务详情的成功响应
+     */
+    @GetMapping("/out_painting/get_task")
+    public BaseResponse<GetOutPaintingTaskResponse> getPictureOutPaintingTask(@RequestParam String taskId) {
+        ThrowUtils.throwIf(StrUtil.isBlank(taskId), ErrorCode.PARAMS_ERROR, "请求参数不能为空");
+        GetOutPaintingTaskResponse getOutPaintingTaskResponse = pictureService.getPictureOutPaintingTask(taskId);
+        return ResultUtils.success(getOutPaintingTaskResponse);
+    }
+
+
+    //endregion  AI智能扩图
 
 }

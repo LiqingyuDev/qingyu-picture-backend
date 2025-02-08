@@ -12,6 +12,10 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.AliYunAiApi;
+import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.CreateOutPaintingTaskRequest;
+import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.CreateOutPaintingTaskResponse;
+import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.GetOutPaintingTaskResponse;
 import com.qingyu.qingyupicturebackend.constant.CacheConstants;
 import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
@@ -25,10 +29,7 @@ import com.qingyu.qingyupicturebackend.manager.upload.PictureUploadTemplate;
 import com.qingyu.qingyupicturebackend.manager.upload.UrlPictureUpload;
 import com.qingyu.qingyupicturebackend.mapper.PictureMapper;
 import com.qingyu.qingyupicturebackend.model.dto.file.UploadPictureResult;
-import com.qingyu.qingyupicturebackend.model.dto.picture.PictureEditRequest;
-import com.qingyu.qingyupicturebackend.model.dto.picture.PictureQueryRequest;
-import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadByBatchRequest;
-import com.qingyu.qingyupicturebackend.model.dto.picture.PictureUploadRequest;
+import com.qingyu.qingyupicturebackend.model.dto.picture.*;
 import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.qingyu.qingyupicturebackend.model.entity.Space;
 import com.qingyu.qingyupicturebackend.model.entity.User;
@@ -86,6 +87,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     private SpaceService spaceService;
     @Resource
     private TransactionTemplate transactionTemplate;
+    @Resource
+    private AliYunAiApi aliYunAiApi;
 
     /**
      * @param inputSource          图片来源对象，可以是 MultipartFile 或 URL 字符串。
@@ -631,7 +634,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
                 return null;
             });
 
-        }else {
+        } else {
             //直接删除数据库
             boolean deleteResult = this.removeById(id);
             ThrowUtils.throwIf(!deleteResult, ErrorCode.OPERATION_ERROR, "删除失败");
@@ -780,8 +783,49 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         }
 
     }
-}
+    //region AI图片相关
 
+    /**
+     * AI智能扩图
+     *
+     * @param createPictureOutPaintingTaskRequest
+     * @return
+     */
+    @Override
+    public CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser) {
+        //查询图片
+        Long pictureId = createPictureOutPaintingTaskRequest.getPictureId();
+        Picture picture = this.getById(pictureId);
+        ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
+        //校验图片
+
+        validPictureAuth(loginUser, picture);
+
+
+        //根据createPictureOutPaintingTaskRequest构建请求
+        CreateOutPaintingTaskRequest createOutPaintingTaskRequest = new CreateOutPaintingTaskRequest();
+        CreateOutPaintingTaskRequest.Input input = new CreateOutPaintingTaskRequest.Input();
+        String pictureUrl = picture.getUrl();
+        input.setImageUrl(pictureUrl);
+        createOutPaintingTaskRequest.setInput(input);
+        createOutPaintingTaskRequest.setParameters(createPictureOutPaintingTaskRequest.getParameters());
+        log.info("最后组成的请求参数：{}", JSONUtil.toJsonStr(createOutPaintingTaskRequest));
+        return aliYunAiApi.createImageOutPainting(createOutPaintingTaskRequest);
+    }
+
+    /**
+     * 查询AI扩图结果
+     *
+     * @param taskId
+     * @return
+     */
+    @Override
+    public GetOutPaintingTaskResponse getPictureOutPaintingTask(String taskId) {
+        GetOutPaintingTaskResponse imageOutPainting = aliYunAiApi.getImageOutPainting(taskId);
+        return imageOutPainting;
+    }
+    //endregion AI图片相关
+}
 
 
 

@@ -1,4 +1,4 @@
-package com.qingyu.qingyupicturebackend.api.model;
+package com.qingyu.qingyupicturebackend.api.imagesearch.sub.model;
 
 import lombok.Data;
 

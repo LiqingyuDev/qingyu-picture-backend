@@ -1,11 +1,11 @@
-package com.qingyu.qingyupicturebackend.api.sub;
+package com.qingyu.qingyupicturebackend.api.imagesearch.sub;
 
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.qingyu.qingyupicturebackend.api.model.ImageSearchResult;
+import com.qingyu.qingyupicturebackend.api.imagesearch.sub.model.ImageSearchResult;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
