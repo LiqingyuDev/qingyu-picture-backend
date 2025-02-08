@@ -33,8 +33,8 @@ import java.util.List;
 public abstract class PictureUploadTemplate {
     // 允许上传的文件后缀列表
     protected static final List<String> ALLOWED_SUFFIXES = Arrays.asList("jpeg", "png", "jpg", "webp");
-    // 文件最大大小（2MB）
-    protected static final long MAX_FILE_SIZE = 1024 * 1024 * 2;
+    // 文件最大大小（5MB）
+    protected static final long MAX_FILE_SIZE = 1024 * 1024 * 5;
     @Resource
     private CosManager cosManager;
     @Resource
@@ -55,7 +55,7 @@ public abstract class PictureUploadTemplate {
 
         String originalFilename = getOriginalFilename(inputSource);
         //限制一下原始文件名的长度，避免文件名过长
-        originalFilename = originalFilename.length() > 100 ? originalFilename.substring(0, 100) : originalFilename;
+        originalFilename = originalFilename.length() > 10 ? originalFilename.substring(0, 5) : originalFilename;
         String originalSuffix = FileUtil.getSuffix(originalFilename);
         String timestamp = DateUtil.format(new Date(), "yyyyMMddHHmmss"); // 更精确的时间戳格式
         String uploadFileName = String.format("%s_%s.%s", timestamp, uuidPrefix, originalSuffix);
