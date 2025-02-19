@@ -216,7 +216,7 @@ public class SpaceController {
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
 
         // 将空间信息转换为脱敏后的视图对象 (VO)
-        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        SpaceVO spaceVO = spaceService.getSpaceVO(space);
 
         // 返回脱敏后的空间对象
         return ResultUtils.success(spaceVO);

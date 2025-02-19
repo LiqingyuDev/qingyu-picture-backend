@@ -74,4 +74,25 @@ CREATE TABLE IF NOT EXISTS `space`
     INDEX `idx_spaceName` (`spaceName`),  -- 提升基于空间名称的查询效率
     INDEX `idx_spaceLevel` (`spaceLevel`) -- 提升按空间级别查询的效率
 ) COMMENT '空间' collate = utf8mb4_unicode_ci;
+# 添加空间类型列
+ALTER TABLE space
+    ADD COLUMN spaceType int default 0 not null comment '空间类型：0-私有空间 1-团队空间';
 
+CREATE INDEX idx_spaceType ON space (spaceType);
+
+
+# 空间用户关系表
+CREATE TABLE IF NOT EXISTS `space_user`
+(
+    `id`         BIGINT AUTO_INCREMENT COMMENT 'id' PRIMARY KEY,
+    `spaceId`    BIGINT                             NOT NULL COMMENT '空间 id',
+    `userId`     BIGINT                             NOT NULL COMMENT '用户 id',
+    `spaceRole`       VARCHAR(32)                        NOT NULL COMMENT '空间角色：viewer-观察者，editor-编辑者，owner-所有者',
+    `createTime` DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '创建时间',
+    `updateTime` DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '更新时间',
+     -- 索引设计
+        UNIQUE KEY uk_spaceId_userId (spaceId, userId), -- 唯一索引，用户在一个空间中只能有一个角色
+        INDEX idx_spaceId (spaceId),                    -- 提升按空间查询的性能
+        INDEX idx_userId (userId)                       -- 提升按用户查询的性能
+)
+comment '空间用户关联' collate = utf8mb4_unicode_ci;

@@ -10,10 +10,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @MapperScan("com.qingyu.qingyupicturebackend.mapper")
 @EnableAspectJAutoProxy(exposeProxy = true) // 启用AspectJ自动代理，并暴露代理对象
 @EnableAsync // 启用异步任务
-public class QingyuPictureBackendApplication {
+public class Application {
 
     public static void main(String[] args) {
-        SpringApplication.run(QingyuPictureBackendApplication.class, args);
+        SpringApplication.run(Application.class, args);
     }
 
 }

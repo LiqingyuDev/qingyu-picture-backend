@@ -32,10 +32,9 @@ public interface SpaceService extends IService<Space> {
      * 将数据库中的空间实体转换为视图对象。
      *
      * @param space   数据库中的空间实体
-     * @param request HTTP 请求对象，用于获取上下文信息
      * @return 返回空间视图对象（SpaceVO）
      */
-    SpaceVO getSpaceVO(Space space, HttpServletRequest request);
+    SpaceVO getSpaceVO(Space space);
 
     /**
      * 分页查询空间，并将结果转换为视图对象列表。
