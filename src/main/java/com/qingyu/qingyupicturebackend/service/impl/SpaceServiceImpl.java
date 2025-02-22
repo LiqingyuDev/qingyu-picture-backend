@@ -56,7 +56,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
     TransactionTemplate transactionTemplate;
 
 
-    @Lazy
+
     @Resource
     private SpaceUserService spaceUserService;
 

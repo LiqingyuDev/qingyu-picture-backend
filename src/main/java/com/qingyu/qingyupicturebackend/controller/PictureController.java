@@ -6,9 +6,9 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qingyu.qingyupicturebackend.annotation.AuthCheck;
-import com.qingyu.qingyupicturebackend.api.imagesearch.ImageSearchApiFacade;
 import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.CreateOutPaintingTaskResponse;
 import com.qingyu.qingyupicturebackend.api.aliyunai.outPainting.model.GetOutPaintingTaskResponse;
+import com.qingyu.qingyupicturebackend.api.imagesearch.ImageSearchApiFacade;
 import com.qingyu.qingyupicturebackend.api.imagesearch.sub.model.ImageSearchResult;
 import com.qingyu.qingyupicturebackend.common.BaseResponse;
 import com.qingyu.qingyupicturebackend.common.ResultUtils;
@@ -17,7 +17,10 @@ import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
-import com.qingyu.qingyupicturebackend.manager.CosManager;
+import com.qingyu.qingyupicturebackend.manager.auth.SpaceUserAuthManager;
+import com.qingyu.qingyupicturebackend.manager.auth.StpKit;
+import com.qingyu.qingyupicturebackend.manager.auth.annotation.SaSpaceCheckPermission;
+import com.qingyu.qingyupicturebackend.manager.auth.model.SpaceUserPermissionConstants;
 import com.qingyu.qingyupicturebackend.manager.cache.CacheStrategy;
 import com.qingyu.qingyupicturebackend.model.dto.picture.*;
 import com.qingyu.qingyupicturebackend.model.entity.Picture;
@@ -26,8 +29,10 @@ import com.qingyu.qingyupicturebackend.model.request.PictureReviewRequest;
 import com.qingyu.qingyupicturebackend.model.vo.PictureTagCategory;
 import com.qingyu.qingyupicturebackend.model.vo.PictureVO;
 import com.qingyu.qingyupicturebackend.service.PictureService;
+import com.qingyu.qingyupicturebackend.service.SpaceService;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -53,7 +58,9 @@ public class PictureController {
     @Resource
     private CacheStrategy cacheStrategy;
     @Resource
-    private CosManager cosManager;
+    private SpaceUserAuthManager spaceUserAuthManager;
+    @Autowired
+    private SpaceService spaceService;
 
     /**
      * 通过URL上传图片接口。
@@ -62,6 +69,7 @@ public class PictureController {
      * @param request              当前的HTTP请求对象，用于获取登录用户信息。
      * @return 返回包含上传成功图片信息的BaseResponse对象。
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.PICTURE_UPLOAD)
     @PostMapping("/upload/url")
     public BaseResponse<PictureVO> uploadPictureByUrl(@RequestBody PictureUploadRequest pictureUploadRequest, HttpServletRequest request) {
         // 获取当前登录用户
@@ -92,6 +100,7 @@ public class PictureController {
      * @param request              当前的HTTP请求对象，用于获取登录用户信息。
      * @return 返回包含上传成功图片信息的BaseResponse对象。
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.PICTURE_UPLOAD)
     @PostMapping("/upload/file")
     public BaseResponse<PictureVO> uploadPicture(@RequestPart("file") MultipartFile file, PictureUploadRequest pictureUploadRequest, HttpServletRequest request) {
         // 获取当前登录用户
@@ -123,6 +132,7 @@ public class PictureController {
      * @param request              HTTP 请求对象，用于获取当前登录用户信息
      * @return 操作结果
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.PICTURE_DELETE)
     @PostMapping("/delete")
     public BaseResponse<Boolean> deletePicture(@RequestBody PictureDeleteRequest pictureDeleteRequest, HttpServletRequest request) {
         // 获取当前登录用户
@@ -210,11 +220,11 @@ public class PictureController {
         Picture picture = pictureService.getById(id);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
         //空间权限验证
-        Long spaceId = picture.getSpaceId();
-        if (spaceId != null) {
-            pictureService.validPictureAuth(userService.getLoginUser(request), picture);
+        // Long spaceId = picture.getSpaceId();
+        //if (spaceId != null) {
+        //    pictureService.validPictureAuth(userService.getLoginUser(request), picture);
 
-        }
+        //}
 
         // 返回查询到的图片对象
         return ResultUtils.success(picture);
@@ -236,9 +246,18 @@ public class PictureController {
         Picture picture = pictureService.getById(id);
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
 
+        // 空间权限验证
+        Long spaceId = picture.getSpaceId();
+        List<String> permissionList = null;
+        if (spaceId != null) {
+            boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstants.PICTURE_VIEW);
+            ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR, "无权限访问");
+            permissionList = spaceUserAuthManager.getPermissionList(spaceService.getById(spaceId), userService.getLoginUser(request));
+        }
+
         // 将图片信息转换为脱敏后的视图对象 (VO)
         PictureVO pictureVO = pictureService.getPictureVO(picture, request);
-
+        pictureVO.setPermissionList(permissionList);
         // 返回脱敏后的图片对象
         return ResultUtils.success(pictureVO);
     }
@@ -265,13 +284,6 @@ public class PictureController {
     }
 
 
-    /**
-     * 分页获取图片列表（需要脱敏和限制条数）
-     *
-     * @param pictureQueryRequest 包含分页和查询条件的请求对象
-     * @param request             HTTP 请求对象，用于获取当前登录用户信息
-     * @return 包含分页结果的成功响应
-     */
     /**
      * 分页获取图片列表（需要脱敏和限制条数），使用缓存
      *
@@ -377,6 +389,7 @@ public class PictureController {
      * @param request                             HTTP请求对象
      * @return 包含任务响应的成功响应
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.PICTURE_EDIT)
     @PostMapping("/out_painting/create_task")
     public BaseResponse<CreateOutPaintingTaskResponse> createPictureOutPaintingTask(
             @RequestBody CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest,

@@ -18,6 +18,7 @@ import com.qingyu.qingyupicturebackend.service.SpaceService;
 import com.qingyu.qingyupicturebackend.service.SpaceUserService;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -37,6 +38,7 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
         implements SpaceUserService {
     @Resource
     private UserService userService;
+    @Lazy
     @Resource
     private SpaceService spaceService;
 

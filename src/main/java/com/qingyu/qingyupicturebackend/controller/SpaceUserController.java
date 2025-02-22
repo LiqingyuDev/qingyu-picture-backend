@@ -9,6 +9,8 @@ import com.qingyu.qingyupicturebackend.common.ResultUtils;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
+import com.qingyu.qingyupicturebackend.manager.auth.annotation.SaSpaceCheckPermission;
+import com.qingyu.qingyupicturebackend.manager.auth.model.SpaceUserPermissionConstants;
 import com.qingyu.qingyupicturebackend.model.dto.spaceuser.SpaceUserAddRequest;
 import com.qingyu.qingyupicturebackend.model.dto.spaceuser.SpaceUserEditRequest;
 import com.qingyu.qingyupicturebackend.model.dto.spaceuser.SpaceUserQueryRequest;
@@ -19,7 +21,6 @@ import com.qingyu.qingyupicturebackend.model.vo.SpaceUserVO;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import com.qingyu.qingyupicturebackend.service.impl.SpaceUserServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -38,7 +39,7 @@ public class SpaceUserController {
 
     @Resource
     private SpaceUserServiceImpl spaceUserService;
-    @Autowired
+    @Resource
     private UserService userService;
 
     /**
@@ -47,6 +48,7 @@ public class SpaceUserController {
      * @param spaceUserAddRequest 包含要添加的用户信息和空间信息的请求对象
      * @return 数据库返回的主键ID
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.SPACE_USER_MANAGE)
     @PostMapping("/add")
     public BaseResponse<Long> addSpaceUser(@RequestBody SpaceUserAddRequest spaceUserAddRequest) {
         ThrowUtils.throwIf(spaceUserAddRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
@@ -62,6 +64,7 @@ public class SpaceUserController {
      * @param request HTTP 请求对象，用于获取上下文信息（如当前用户信息）
      * @return 成功或失败信息
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.SPACE_USER_MANAGE)
     @PostMapping("/delete/{spaceUserId}")
     public BaseResponse<Boolean> deleteSpaceUser(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(deleteRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
@@ -80,6 +83,7 @@ public class SpaceUserController {
      * @param request               HTTP 请求对象，用于获取上下文信息（如当前用户信息）
      * @return 转换后的空间用户关联视图对象列表
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.SPACE_USER_MANAGE)
     @GetMapping("/list")
     public BaseResponse<List<SpaceUserVO>> listSpaceUsers(@RequestBody SpaceUserQueryRequest spaceUserQueryRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(spaceUserQueryRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
@@ -99,6 +103,7 @@ public class SpaceUserController {
      * @param request
      * @return
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.SPACE_USER_MANAGE)
     @PostMapping("/get")
     public BaseResponse<SpaceUserVO> getSpaceUserById(@RequestBody SpaceUserQueryRequest spaceUserQueryRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(spaceUserQueryRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
@@ -121,6 +126,7 @@ public class SpaceUserController {
      * @param request
      * @return
      */
+    @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.SPACE_USER_MANAGE)
     @PostMapping("/edit")
     public BaseResponse<Boolean> editSpaceUser(@RequestBody SpaceUserEditRequest spaceUserEditRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(spaceUserEditRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
