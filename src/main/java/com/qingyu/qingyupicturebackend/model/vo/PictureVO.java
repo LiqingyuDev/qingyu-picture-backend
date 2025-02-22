@@ -7,6 +7,7 @@ import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -87,6 +88,10 @@ public class PictureVO implements Serializable {
      * 空间id
      */
     private Long spaceId;
+    /**
+     * 权限列表
+     */
+    private List<String> permissionList = new ArrayList<>();
 
     /**
      * 创建时间

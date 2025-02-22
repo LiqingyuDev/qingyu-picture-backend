@@ -12,6 +12,7 @@ import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
+import com.qingyu.qingyupicturebackend.manager.auth.SpaceUserAuthManager;
 import com.qingyu.qingyupicturebackend.model.dto.space.*;
 import com.qingyu.qingyupicturebackend.model.entity.Picture;
 import com.qingyu.qingyupicturebackend.model.entity.Space;
@@ -46,6 +47,8 @@ public class SpaceController {
     private UserService userService;
     @Resource
     private PictureService pictureService;
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
 
     // region  增删查改
@@ -214,10 +217,12 @@ public class SpaceController {
         // 查询数据库获取空间信息
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+        //封装权限列表
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, userService.getLoginUser(request));
 
         // 将空间信息转换为脱敏后的视图对象 (VO)
         SpaceVO spaceVO = spaceService.getSpaceVO(space);
-
+        spaceVO.setPermissionList(permissionList);
         // 返回脱敏后的空间对象
         return ResultUtils.success(spaceVO);
     }

@@ -70,11 +70,11 @@
 
 #### 后端：
 
-- JDK 1.8+ | Maven 3.8+ | MySQL 8.0+ | Redis 6.2+
+- JDK 11+ | Maven 3.8+ | MySQL 8.0+ | Redis 6.2+
 
 #### 前端
 
-- Node.js 16+ | npm 10+
+- Node.js 18+ | npm 10+
 
 ### 项目启动
 

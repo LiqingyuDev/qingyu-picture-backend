@@ -22,6 +22,8 @@ import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
 import com.qingyu.qingyupicturebackend.manager.CosManager;
+import com.qingyu.qingyupicturebackend.manager.auth.StpKit;
+import com.qingyu.qingyupicturebackend.manager.auth.model.SpaceUserPermissionConstants;
 import com.qingyu.qingyupicturebackend.manager.cache.CacheManager;
 import com.qingyu.qingyupicturebackend.manager.cache.CacheStrategy;
 import com.qingyu.qingyupicturebackend.manager.upload.FilePictureUpload;
@@ -114,8 +116,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             ThrowUtils.throwIf(ObjUtil.isEmpty(oldPicture), ErrorCode.PARAMS_ERROR, "图片不存在");
 
             Long oldSpaceId = oldPicture.getSpaceId();
-            // 校验用户是否有权限修改图片
-            validPictureAuth(loginUser, oldPicture);
+            // 校验用户是否有权限修改图片（已经改为使用注解鉴权）
+//            validPictureAuth(loginUser, oldPicture);
 
             // 检查两次空间是否一致
             if (spaceId == null) {
@@ -406,10 +408,14 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             // 设置查询条件，确保主页展示时只返回已过审的数据
             pictureQueryRequest.setReviewStatus(PictureReviewStatuesEnum.PASS.getValue());
         } else {
+            // 校验空间权限
+            boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstants.PICTURE_VIEW);
+            ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR, "无权限访问");
+
             // 指定了空间id，查询指定空间下的图片
-            Space space = spaceService.getById(spaceId);
-            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-            ThrowUtils.throwIf(!space.getUserId().equals(userService.getLoginUser(request).getId()), ErrorCode.NO_AUTH_ERROR, "无权限");
+//            Space space = spaceService.getById(spaceId);
+//            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+//            ThrowUtils.throwIf(!space.getUserId().equals(userService.getLoginUser(request).getId()), ErrorCode.NO_AUTH_ERROR, "无权限");
         }
 
         // 获取分页参数
@@ -584,8 +590,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         picture.setEditTime(new Date());
         //图片数据校验
         this.validPicture(picture);
-        //仅本人或管理员可以修改
-        this.validPictureAuth(loginUser, picture);
+        //仅本人或管理员可以修改（已经改为使用注解鉴权）
+        // this.validPictureAuth(loginUser, picture);
         //填充默认审核状态
         this.fillReviewParams(picture, loginUser);
         //操作数据库
@@ -618,8 +624,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         if (picture == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "图片不存在");
         }
-        // 如果不是创建者或管理员，直接返回无权限错误
-        validPictureAuth(loginUser, picture);
+        // 如果不是创建者或管理员，直接返回无权限错误（已经改为使用注解鉴权）
+        //    validPictureAuth(loginUser, picture);
         //判断是否是私有空间内图片
         Long spaceId = picture.getSpaceId();
         if (spaceId != null) {
@@ -708,6 +714,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
      * @param loginUser 当前登录用户
      * @param picture   图片对象（仅在修改操作时需要）
      */
+/*
     @Override
     public void validPictureAuth(User loginUser, Picture picture) {
         Long spaceId = picture.getSpaceId();
@@ -727,6 +734,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
 
 
     }
+*/
 
     /**
      * 审核图片，更新图片审核状态。
@@ -799,7 +807,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         ThrowUtils.throwIf(picture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
         //校验图片
 
-        validPictureAuth(loginUser, picture);
+        // validPictureAuth(loginUser, picture);
 
 
         //根据createPictureOutPaintingTaskRequest构建请求

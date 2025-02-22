@@ -3,20 +3,21 @@ package com.qingyu.qingyupicturebackend.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.qingyu.qingyupicturebackend.constant.UserConstant;
 import com.qingyu.qingyupicturebackend.exception.BusinessException;
 import com.qingyu.qingyupicturebackend.exception.ErrorCode;
 import com.qingyu.qingyupicturebackend.exception.ThrowUtils;
+import com.qingyu.qingyupicturebackend.manager.auth.StpKit;
+import com.qingyu.qingyupicturebackend.mapper.UserMapper;
 import com.qingyu.qingyupicturebackend.model.dto.user.UserQueryRequest;
 import com.qingyu.qingyupicturebackend.model.entity.User;
 import com.qingyu.qingyupicturebackend.model.enums.UserRoleEnum;
 import com.qingyu.qingyupicturebackend.model.vo.LoginUserVO;
 import com.qingyu.qingyupicturebackend.model.vo.UserVO;
 import com.qingyu.qingyupicturebackend.service.UserService;
-import com.qingyu.qingyupicturebackend.mapper.UserMapper;
-import cn.hutool.core.util.StrUtil;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
@@ -26,6 +27,8 @@ import javax.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.qingyu.qingyupicturebackend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * 用户服务实现类
@@ -98,9 +101,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
 
         // 5. 保存用户的登录态
-        request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
+        request.getSession().setAttribute(USER_LOGIN_STATE, user);
+        // 6. 保存到sa-token
+        StpKit.SPACE.login(user.getId());
+        StpKit.SPACE.getSession().set(USER_LOGIN_STATE, user);
 
-        // 6. 返回登录信息
+        // 7. 返回登录信息
         return getLoginUserVO(user);
     }
 
@@ -108,7 +114,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public User getLoginUser(HttpServletRequest request) {
         // 判断是否已经登录
         HttpSession session = request.getSession();
-        Object userObj = session.getAttribute(UserConstant.USER_LOGIN_STATE);
+        Object userObj = session.getAttribute(USER_LOGIN_STATE);
         User currentUser = (User) userObj;
         if (currentUser == null || currentUser.getId() == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "未登录");
@@ -128,13 +134,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public Boolean userLogout(HttpServletRequest request) {
         // 判断是否已经登录
         HttpSession session = request.getSession();
-        Object loginState = session.getAttribute(UserConstant.USER_LOGIN_STATE);
+        Object loginState = session.getAttribute(USER_LOGIN_STATE);
         if (loginState == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "未登录");
         }
 
         // 清除session中的登录状态
-        session.removeAttribute(UserConstant.USER_LOGIN_STATE);
+        session.removeAttribute(USER_LOGIN_STATE);
         return true;
     }
 
@@ -247,6 +253,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     /**
      * 判断是否为管理员
+     *
      * @param user
      * @return
      */
