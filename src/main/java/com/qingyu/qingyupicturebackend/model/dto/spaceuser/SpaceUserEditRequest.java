@@ -12,6 +12,10 @@ import java.io.Serializable;
 
 @Data
 public class SpaceUserEditRequest implements Serializable {
+    /**
+     * 用户空间关联主键
+     */
+    private Long id;
 
     /**
      * 空间 ID

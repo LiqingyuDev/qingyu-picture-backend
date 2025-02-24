@@ -18,10 +18,13 @@ import com.qingyu.qingyupicturebackend.model.entity.SpaceUser;
 import com.qingyu.qingyupicturebackend.model.entity.User;
 import com.qingyu.qingyupicturebackend.model.request.DeleteRequest;
 import com.qingyu.qingyupicturebackend.model.vo.SpaceUserVO;
+import com.qingyu.qingyupicturebackend.service.SpaceUserService;
 import com.qingyu.qingyupicturebackend.service.UserService;
-import com.qingyu.qingyupicturebackend.service.impl.SpaceUserServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -38,7 +41,7 @@ import java.util.List;
 public class SpaceUserController {
 
     @Resource
-    private SpaceUserServiceImpl spaceUserService;
+    private SpaceUserService spaceUserService;
     @Resource
     private UserService userService;
 
@@ -84,8 +87,8 @@ public class SpaceUserController {
      * @return 转换后的空间用户关联视图对象列表
      */
     @SaSpaceCheckPermission(value = SpaceUserPermissionConstants.SPACE_USER_MANAGE)
-    @GetMapping("/list")
-    public BaseResponse<List<SpaceUserVO>> listSpaceUsers(@RequestBody SpaceUserQueryRequest spaceUserQueryRequest, HttpServletRequest request) {
+    @PostMapping("/list")
+    public BaseResponse<List<SpaceUserVO>> listSpaceUser(@RequestBody SpaceUserQueryRequest spaceUserQueryRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(spaceUserQueryRequest == null, ErrorCode.PARAMS_ERROR, "请求参数不能为空");
         // 创建查询条件
         QueryWrapper<SpaceUser> queryWrapper = spaceUserService.getQueryWrapper(spaceUserQueryRequest);

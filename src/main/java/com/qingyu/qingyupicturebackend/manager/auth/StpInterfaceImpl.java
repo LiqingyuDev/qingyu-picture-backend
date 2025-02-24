@@ -80,7 +80,7 @@ public class StpInterfaceImpl implements StpInterface {
         //管理员权限
         List<String> adminPermissions = SpaceUserAuthManager.getSpaceUserAuthConfigByRole(SpaceRoleEnum.ADMIN.getValue());
         //编辑者
-        //List<String> editorPermissions = SpaceUserAuthManager.getSpaceUserAuthConfigByRole(SpaceRoleEnum.EDITOR.getValue());
+        List<String> editorPermissions = SpaceUserAuthManager.getSpaceUserAuthConfigByRole(SpaceRoleEnum.EDITOR.getValue());
         //浏览者
         List<String> viewerPermissions = SpaceUserAuthManager.getSpaceUserAuthConfigByRole(SpaceRoleEnum.VIEWER.getValue());
 
@@ -121,6 +121,7 @@ public class StpInterfaceImpl implements StpInterface {
             }
             return spaceUserAuthManager.getSpaceUserAuthConfigByRole(loginSpaceUser.getSpaceRole());
         }
+
         //如果没有spaceUserId，可以通过spaceId或pictureId获取
         Long spaceId = spaceUserAuthContext.getSpaceId();
         if (spaceId == null) {
@@ -139,7 +140,6 @@ public class StpInterfaceImpl implements StpInterface {
             if (spaceId == null) {
                 if (userService.isAdmin(loginUser) || loginUserId.equals(pictureById.getUserId())) {
                     return adminPermissions;
-
                 }
                 //仅仅可查看
                 return viewerPermissions;
@@ -172,8 +172,31 @@ public class StpInterfaceImpl implements StpInterface {
 
 
         }
-
-        return permissions;
+        //spaceId不为空，通过spaceId获取空间用户信息
+// 获取 Space 对象
+        Space space = spaceService.getById(spaceId);
+        if (space == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "未找到空间信息");
+        }
+        // 根据 Space 类型判断权限
+        if (space.getSpaceType() == SpaceTypeEnum.PRIVATE.getValue()) {
+            // 私有空间，仅本人或管理员有权限
+            if (space.getUserId().equals(loginUserId) || userService.isAdmin(loginUser)) {
+                return adminPermissions;
+            } else {
+                return new ArrayList<>();
+            }
+        } else {
+            // 团队空间，查询 SpaceUser 并获取角色和权限
+            spaceUser = spaceUserService.lambdaQuery()
+                    .eq(SpaceUser::getSpaceId, spaceId)
+                    .eq(SpaceUser::getUserId, loginUserId)
+                    .one();
+            if (spaceUser == null) {
+                return new ArrayList<>();
+            }
+            return spaceUserAuthManager.getSpaceUserAuthConfigByRole(spaceUser.getSpaceRole());
+        }
     }
 
     /**

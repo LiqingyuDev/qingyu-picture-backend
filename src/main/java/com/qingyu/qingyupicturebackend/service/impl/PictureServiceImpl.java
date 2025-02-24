@@ -411,11 +411,6 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             // 校验空间权限
             boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstants.PICTURE_VIEW);
             ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR, "无权限访问");
-
-            // 指定了空间id，查询指定空间下的图片
-//            Space space = spaceService.getById(spaceId);
-//            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-//            ThrowUtils.throwIf(!space.getUserId().equals(userService.getLoginUser(request).getId()), ErrorCode.NO_AUTH_ERROR, "无权限");
         }
 
         // 获取分页参数
