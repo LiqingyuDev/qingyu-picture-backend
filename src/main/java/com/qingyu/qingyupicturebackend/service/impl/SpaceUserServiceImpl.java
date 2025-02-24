@@ -14,9 +14,12 @@ import com.qingyu.qingyupicturebackend.model.entity.Space;
 import com.qingyu.qingyupicturebackend.model.entity.SpaceUser;
 import com.qingyu.qingyupicturebackend.model.entity.User;
 import com.qingyu.qingyupicturebackend.model.vo.SpaceUserVO;
+import com.qingyu.qingyupicturebackend.model.vo.SpaceVO;
+import com.qingyu.qingyupicturebackend.model.vo.UserVO;
 import com.qingyu.qingyupicturebackend.service.SpaceService;
 import com.qingyu.qingyupicturebackend.service.SpaceUserService;
 import com.qingyu.qingyupicturebackend.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,7 @@ import java.util.stream.Collectors;
  * @description 针对表【space_user(空间用户关联)】的数据库操作Service实现
  * @createDate 2025-02-09 11:54:02
  */
+@Slf4j
 @Service
 public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser>
         implements SpaceUserService {
@@ -92,15 +96,25 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
      */
     @Override
     public SpaceUserVO getSpaceUserVO(SpaceUser spaceUser) {
+        if (spaceUser == null) {
+            return null;
+        }
         //共有字段
         SpaceUserVO spaceUserVO = SpaceUserVO.objToVo(spaceUser);
         //封装类关联额外字段
         Long spaceId = spaceUser.getSpaceId();
         Long userId = spaceUser.getUserId();
 
-        spaceUserVO.setUser(userService.getUserVO(userService.getById(userId)));
-        spaceUserVO.setSpace(spaceService.getSpaceVO(spaceService.getById(spaceId)));
+        if (userId != null) {
+            User user = userService.getById(userId);
+            spaceUserVO.setUser(user != null ? UserVO.objToVo(user) : null);
+        }
 
+        if (spaceId != null) {
+            Space space = spaceService.getById(spaceId);
+            spaceUserVO.setSpace(space != null ? SpaceVO.objToVo(space) : null);
+        }
+        log.debug("spaceUserVO: {}", spaceUserVO);
         return spaceUserVO;
     }
 

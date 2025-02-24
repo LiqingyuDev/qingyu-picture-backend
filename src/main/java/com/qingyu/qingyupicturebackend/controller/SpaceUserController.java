@@ -144,12 +144,11 @@ public class SpaceUserController {
     /**
      * 查询我加入的空间(用户空间多对多)
      *
-     * @param spaceUserQueryRequest
      * @param request
      * @return
      */
     @PostMapping("/list/my")
-    public BaseResponse<List<SpaceUserVO>> listMySpaceUsers(@RequestBody SpaceUserQueryRequest spaceUserQueryRequest, HttpServletRequest request) {
+    public BaseResponse<List<SpaceUserVO>> listMyTeamSpace(HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
 

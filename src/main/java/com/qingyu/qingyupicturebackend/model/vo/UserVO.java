@@ -1,6 +1,8 @@
 package com.qingyu.qingyupicturebackend.model.vo;
 
+import com.qingyu.qingyupicturebackend.model.entity.User;
 import lombok.Data;
+import org.springframework.beans.BeanUtils;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -58,4 +60,34 @@ public class UserVO implements Serializable {
     private Date updateTime;
 
     private static final long serialVersionUID = 1L;
+
+    /**
+     * 封装类转对象
+     *
+     * @param userVO
+     * @return
+     */
+    public static User voToObj(UserVO userVO) {
+        if (userVO == null) {
+            return null;
+        }
+        User user = new User();
+        BeanUtils.copyProperties(userVO, user);
+        return user;
+    }
+
+    /**
+     * 对象转封装类
+     *
+     * @param user
+     * @return
+     */
+    public static UserVO objToVo(User user) {
+        if (user == null) {
+            return null;
+        }
+        UserVO userVO = new UserVO();
+        BeanUtils.copyProperties(user, userVO);
+        return userVO;
+    }
 }

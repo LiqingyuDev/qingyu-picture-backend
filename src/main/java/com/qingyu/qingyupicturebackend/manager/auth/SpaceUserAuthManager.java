@@ -48,7 +48,7 @@ public class SpaceUserAuthManager {
         }
         List<SpaceUserRole> roles = jsonStrBean.getRoles();
         for (SpaceUserRole role : roles) {
-            if (role.getName().equals(spaceRole)) {
+            if (role.getKey().equals(spaceRole)) {
                 List<String> permissions = role.getPermissions();
                 return permissions; // 找到匹配的角色后直接返回权限列表
             }

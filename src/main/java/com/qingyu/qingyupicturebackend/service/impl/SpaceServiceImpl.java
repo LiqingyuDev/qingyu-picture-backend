@@ -26,7 +26,6 @@ import com.qingyu.qingyupicturebackend.service.SpaceService;
 import com.qingyu.qingyupicturebackend.service.SpaceUserService;
 import com.qingyu.qingyupicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -71,7 +70,12 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
     @Override
     public Long addSpace(SpaceAddRequest spaceAddRequest, User loginUser) {
 
+
         Space space = new Space();
+
+        // 将请求参数转换为实体对象
+        BeanUtil.copyProperties(spaceAddRequest, space);
+
         // 自动填充私有数据
         if (StrUtil.isBlank(space.getSpaceName())) {
             space.setSpaceName("默认空间");
@@ -84,9 +88,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
             // 类型默认私有空间
             space.setSpaceType(SpaceTypeEnum.PRIVATE.getValue());
         }
-
-        // 将请求参数转换为实体对象
-        BeanUtil.copyProperties(spaceAddRequest, space);
         // 自动填充空间级别相关数据
         this.fillSpaceBySpaceLevel(space);
         space.setUserId(loginUser.getId());
