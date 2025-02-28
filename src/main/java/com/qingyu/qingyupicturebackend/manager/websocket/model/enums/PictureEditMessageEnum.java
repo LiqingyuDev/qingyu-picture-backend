@@ -29,7 +29,8 @@ public enum PictureEditMessageEnum {
      * 根据 value 获取枚举
      */
     public static PictureEditMessageEnum getEnumByValue(String value) {
-        if (StrUtil.isNotBlank(value)) {
+        if (StrUtil.isBlank(value)) {
+            // 如果 value 为空，则返回 null
             return null;
         }
 
