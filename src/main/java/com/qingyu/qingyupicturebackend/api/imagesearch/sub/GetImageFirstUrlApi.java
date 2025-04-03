@@ -88,7 +88,7 @@ public class GetImageFirstUrlApi {
      */
     public static void main(String[] args) {
         // 请求目标 URL
-        String url = "https://graph.baidu.com/s?card_key=&entrance=GENERAL&extUiData%5BisLogoShow%5D=1&f=all&isLogoShow=1&session_id=16934843548880130471&sign=126417d07e2b5a9e315ea01737522594&tpl_from=pc";
+        String url = "https://graph.baidu.com/s?card_key=&entrance=GENERAL&extUiData%5BisLogoShow%5D=1&f=all&isLogoShow=1&session_id=16709916879831538679&sign=126ac7d07e2b5a9e315ea01743651680&tpl_from=pc";
 
         try {
             String imageFirstUrl = getImageFirstUrl(url);

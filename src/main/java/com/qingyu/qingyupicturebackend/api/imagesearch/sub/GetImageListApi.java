@@ -63,7 +63,7 @@ public class GetImageListApi {
      * 主方法，用于测试 {@link #parseImageUrl(String)} 方法。
      */
     public static void main(String[] args) {
-        String url = "https://graph.baidu.com/ajax/pcsimi?carousel=503&entrance=GENERAL&extUiData%5BisLogoShow%5D=1&inspire=general_pc&limit=30&next=2&render_type=card&session_id=16934843548880130471&sign=126417d07e2b5a9e315ea01737522594&tk=e992f&tpl_from=pc";
+        String url = "https://graph.baidu.com/ajax/pcsimi?carousel=503&entrance=GENERAL&extUiData%5BisLogoShow%5D=1&inspire=general_pc&limit=30&next=2&render_type=card&session_id=16709916879831538679&sign=126ac7d07e2b5a9e315ea01743651680&tk=218b3&tpl_from=pc";
 
         try {
             List<ImageSearchResult> resultList = parseImageUrl(url);

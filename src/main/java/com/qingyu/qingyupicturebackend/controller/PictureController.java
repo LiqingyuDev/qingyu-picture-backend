@@ -248,12 +248,12 @@ public class PictureController {
 
         // 空间权限验证
         Long spaceId = picture.getSpaceId();
-        List<String> permissionList = null;
         if (spaceId != null) {
             boolean hasPermission = StpKit.SPACE.hasPermission(SpaceUserPermissionConstants.PICTURE_VIEW);
             ThrowUtils.throwIf(!hasPermission, ErrorCode.NO_AUTH_ERROR, "无权限访问");
-            permissionList = spaceUserAuthManager.getPermissionList(spaceService.getById(spaceId), userService.getLoginUser(request));
         }
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(spaceService.getById(spaceId), userService.getLoginUser(request));
+
 
         // 将图片信息转换为脱敏后的视图对象 (VO)
         PictureVO pictureVO = pictureService.getPictureVO(picture, request);

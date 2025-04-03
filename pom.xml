@@ -162,7 +162,7 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.qingyu.qingyupicturebackend.Application</mainClass>
-                    <skip>true</skip>
+<!--                    <skip>true</skip>-->
                 </configuration>
                 <executions>
                     <execution>

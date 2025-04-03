@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS `picture`
 (
     `id`            BIGINT AUTO_INCREMENT COMMENT 'id' PRIMARY KEY,
     `url`           VARCHAR(512)                       NOT NULL COMMENT '图片 url',
-    `name`          VARCHAR(128)                       NOT NULL COMMENT '图片名称',
+    `picName`          VARCHAR(128)                       NOT NULL COMMENT '图片名称',
     `introduction`  VARCHAR(512)                       NULL COMMENT '简介',
     `category`      VARCHAR(64)                        NULL COMMENT '分类',
     `tags`          VARCHAR(512)                       NULL COMMENT '标签（JSON 数组）',
